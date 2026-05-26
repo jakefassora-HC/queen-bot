@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import readline from 'readline'
 import { fetchQueue } from './jira.js'
 import { generatePlan } from './plan.js'
