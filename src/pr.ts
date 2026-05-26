@@ -1,5 +1,4 @@
 import { execSync } from 'child_process'
-import { getGitHubToken, GITHUB_OWNER, GITHUB_REPO } from './config.js'
 
 export function buildPrBody(ticketKey: string, summary: string, plan: string): string {
   return `## ${ticketKey}: ${summary}\n\n**Plan:**\n${plan}\n\n---\n_Opened by agent-queue_`
@@ -12,29 +11,12 @@ export function commitAndPush(worktreePath: string, ticketKey: string, summary: 
   execSync(`git -C ${worktreePath} push origin agent/${ticketKey}`, { stdio: 'inherit' })
 }
 
-export async function openDraftPr(
-  ticketKey: string,
-  summary: string,
-  plan: string
-): Promise<string> {
+export function openDraftPr(ticketKey: string, summary: string, plan: string): string {
   const body = buildPrBody(ticketKey, summary, plan)
-  const res = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/pulls`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${getGitHubToken()}`,
-      Accept: 'application/vnd.github+json',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      title: `[${ticketKey}] ${summary}`,
-      body,
-      head: `agent/${ticketKey}`,
-      base: 'main',
-      draft: true
-    })
-  })
-
-  if (!res.ok) throw new Error(`GitHub PR error ${res.status}: ${await res.text()}`)
-  const data = await res.json() as { html_url: string }
-  return data.html_url
+  // gh CLI uses its own auth — no GitHub token needed
+  const url = execSync(
+    `gh pr create --title ${JSON.stringify(`[${ticketKey}] ${summary}`)} --body ${JSON.stringify(body)} --draft`,
+    { cwd: process.env.REPO_PATH }
+  ).toString().trim()
+  return url
 }
