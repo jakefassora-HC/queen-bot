@@ -116,3 +116,8 @@ export async function main(): Promise<void> {
     await runTicket(tickets[idx])
   }
 }
+
+main().catch(err => {
+  console.error(`  ❌ ${err instanceof Error ? err.message : String(err)}`)
+  process.exit(1)
+})
