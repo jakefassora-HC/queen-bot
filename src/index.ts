@@ -99,8 +99,14 @@ export async function main(): Promise<void> {
     return
   }
 
-  const tickets = await fetchQueue()
-  if (tickets.length === 0) { console.log('No ai-candidate tickets found.'); return }
+  let tickets
+  try {
+    tickets = await fetchQueue()
+  } catch (err) {
+    console.error(`  ❌ Jira error: ${err instanceof Error ? err.message : String(err)}`)
+    return
+  }
+  if (tickets.length === 0) { console.log('No ai-candidate tickets found. Add label "ai-candidate" to a ticket in Jira.'); return }
 
   renderQueue(tickets)
   const input = await prompt('\n  Pick tickets (e.g. 1,3): ')
