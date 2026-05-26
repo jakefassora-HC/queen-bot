@@ -30,7 +30,7 @@ export function parseTicket(issue: Record<string, unknown>): JiraTicket {
 
 export async function fetchQueue(): Promise<JiraTicket[]> {
   const jql = encodeURIComponent(
-    `project = ${JIRA_PROJECT} AND labels = "ai-candidate" AND status != Done ORDER BY priority DESC`
+    `project = ${JIRA_PROJECT} AND assignee = currentUser() AND labels = "ai-candidate" AND status != Done ORDER BY priority DESC`
   )
   const url = `${JIRA_BASE_URL}/rest/api/3/search/jql?jql=${jql}&maxResults=20`
   const res = await fetch(url, { headers: { Authorization: authHeader(), Accept: 'application/json' } })
