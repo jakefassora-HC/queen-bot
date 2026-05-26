@@ -7,7 +7,6 @@ import { spawnDocker } from './spawn-docker.js'
 import { spawnNative } from './spawn-native.js'
 import { commitAndPush, openDraftPr } from './pr.js'
 import { writeRun, updateRun, activeRuns } from './state.js'
-import { getAnthropicKey } from './config.js'
 import { getModel } from './models.js'
 import type { JiraTicket } from './types.js'
 
@@ -35,14 +34,19 @@ async function runTicket(ticket: JiraTicket): Promise<void> {
     return
   }
 
+  if (!ticket.repo) {
+    console.log(`  ⚠  ${ticket.key} has no repo label. Add label "repo:owner/name" in Jira.`)
+    return
+  }
+
   const model = getModel(r.runtime)
-  console.log(`\n  Runtime: ${r.runtime}  Model: ${model}`)
+  console.log(`\n  Runtime: ${r.runtime}  Repo: ${ticket.repo}  Model: ${model}`)
   console.log('\n' + plan.raw.split('\n').map(l => '  ' + l).join('\n'))
 
   const answer = await prompt('\n  Approve? [y/n/r(evise)]: ')
   if (answer !== 'y') { console.log('  Skipped.'); return }
 
-  const worktree = createWorktree(ticket.key)
+  const worktree = createWorktree(ticket.key, ticket.repo)
   const startedAt = new Date().toISOString()
   const start = Date.now()
 
@@ -73,7 +77,7 @@ async function runTicket(ticket: JiraTicket): Promise<void> {
     await updateRun(ticket.key, { status: 'done', pr: prUrl, finishedAt: new Date().toISOString() })
     console.log(`\n  ✅ ${ticket.key} done in ${mins}m ${secs}s`)
     console.log(`  PR: ${prUrl}`)
-    removeWorktree(ticket.key)
+    removeWorktree(ticket.key, ticket.repo!)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     await updateRun(ticket.key, { status: 'failed', error: msg })

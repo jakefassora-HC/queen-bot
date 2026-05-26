@@ -6,6 +6,7 @@ export interface JiraTicket {
   size: 'small' | 'medium' | 'large'
   labels: string[]
   status: string
+  repo?: string  // parsed from label "repo:owner/name"
 }
 
 export interface Plan {

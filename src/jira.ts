@@ -17,14 +17,19 @@ export function parseTicket(issue: Record<string, unknown>): JiraTicket {
     .map(n => n.text ?? '')
     .join(' ') ?? ''
 
+  const labels = (fields.labels as string[]) ?? []
+  const repoLabel = labels.find(l => l.startsWith('repo:'))
+  const repo = repoLabel ? repoLabel.slice(5) : undefined
+
   return {
     id: issue.id as string,
     key: issue.key as string,
     summary: (fields.summary as string) ?? '',
     description,
     size,
-    labels: (fields.labels as string[]) ?? [],
-    status: ((fields.status as Record<string, string>)?.name) ?? ''
+    labels,
+    status: ((fields.status as Record<string, string>)?.name) ?? '',
+    repo
   }
 }
 
