@@ -1,0 +1,103 @@
+import readline from 'readline'
+import { fetchQueue } from './jira.js'
+import { generatePlan } from './plan.js'
+import { route } from './route.js'
+import { createWorktree, removeWorktree, branchName } from './worktree.js'
+import { spawnDocker } from './spawn-docker.js'
+import { spawnNative } from './spawn-native.js'
+import { commitAndPush, openDraftPr } from './pr.js'
+import { sendDm, buildSuccessMessage, buildFailureMessage } from './notify.js'
+import { writeRun, updateRun, activeRuns } from './state.js'
+import { getAnthropicKey } from './config.js'
+import { getModel } from './models.js'
+import type { JiraTicket } from './types.js'
+
+function prompt(q: string): Promise<string> {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+  return new Promise(resolve => rl.question(q, a => { rl.close(); resolve(a.trim()) }))
+}
+
+function renderQueue(tickets: JiraTicket[]): void {
+  console.log('\n  agent-queue\n  ' + '─'.repeat(50))
+  tickets.forEach((t, i) => {
+    const size = t.size.padEnd(6)
+    console.log(`  ${i + 1}. ${t.key}  ${size}  ${t.summary}`)
+  })
+  console.log('  ' + '─'.repeat(50))
+}
+
+async function runTicket(ticket: JiraTicket): Promise<void> {
+  console.log(`\n  Generating plan for ${ticket.key}...`)
+  const plan = await generatePlan(ticket)
+  const r = route(ticket)
+
+  if (!r.runtime) {
+    console.log(`  ⚠  ${ticket.key} blocked: ${r.reason}`)
+    return
+  }
+
+  const model = getModel(r.runtime)
+  console.log(`\n  Runtime: ${r.runtime}  Model: ${model}`)
+  console.log('\n' + plan.raw.split('\n').map(l => '  ' + l).join('\n'))
+
+  const answer = await prompt('\n  Approve? [y/n/r(evise)]: ')
+  if (answer !== 'y') { console.log('  Skipped.'); return }
+
+  const worktree = createWorktree(ticket.key)
+  const startedAt = new Date().toISOString()
+  const start = Date.now()
+
+  await writeRun({
+    ticket: ticket.key,
+    runtime: r.runtime,
+    model,
+    status: 'running',
+    worktree,
+    branch: branchName(ticket.key),
+    startedAt
+  })
+
+  console.log(`  → Running in background. Slack DM when done.\n`)
+
+  try {
+    if (r.runtime === 'claude-docker') {
+      await spawnDocker(worktree, plan.raw, getAnthropicKey())
+    } else {
+      await spawnNative(worktree, plan.raw)
+    }
+
+    commitAndPush(worktree, ticket.key, ticket.summary)
+    const prUrl = await openDraftPr(ticket.key, ticket.summary, plan.raw)
+    const elapsed = Math.floor((Date.now() - start) / 1000)
+
+    await updateRun(ticket.key, { status: 'done', pr: prUrl, finishedAt: new Date().toISOString() })
+    await sendDm(buildSuccessMessage(ticket.key, ticket.summary, prUrl, elapsed))
+    removeWorktree(ticket.key)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    await updateRun(ticket.key, { status: 'failed', error: msg })
+    await sendDm(buildFailureMessage(ticket.key, msg))
+  }
+}
+
+export async function main(): Promise<void> {
+  const args = process.argv.slice(2)
+
+  if (args[0] === 'status') {
+    const runs = await activeRuns()
+    if (runs.length === 0) { console.log('No active runs.'); return }
+    runs.forEach(r => console.log(`  ${r.ticket}  ${r.status}  ${r.runtime}  started: ${r.startedAt}`))
+    return
+  }
+
+  const tickets = await fetchQueue()
+  if (tickets.length === 0) { console.log('No ai-candidate tickets found.'); return }
+
+  renderQueue(tickets)
+  const input = await prompt('\n  Pick tickets (e.g. 1,3): ')
+  const selected = input.split(',').map(s => parseInt(s.trim()) - 1).filter(i => i >= 0 && i < tickets.length)
+
+  for (const idx of selected) {
+    await runTicket(tickets[idx])
+  }
+}
