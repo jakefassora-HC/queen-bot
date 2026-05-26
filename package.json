@@ -1,0 +1,33 @@
+{
+  "name": "agent-queue",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "agent-queue": "./bin/agent-queue.mjs"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "test": "jest"
+  },
+  "jest": {
+    "preset": "ts-jest/presets/default-esm",
+    "testEnvironment": "node",
+    "extensionsToTreatAsEsm": [".ts"],
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    }
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.98.0",
+    "minimatch": "^10.2.5"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.9.1",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.11",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3"
+  }
+}
