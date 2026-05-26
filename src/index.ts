@@ -64,7 +64,7 @@ async function runTicket(ticket: JiraTicket): Promise<void> {
 
   try {
     if (r.runtime === 'claude-docker') {
-      await spawnDocker(worktree, plan.raw, getAnthropicKey())
+      await spawnDocker(worktree, plan.raw, '')
     } else {
       await spawnNative(worktree, plan.raw)
     }
