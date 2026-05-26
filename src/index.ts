@@ -6,7 +6,6 @@ import { createWorktree, removeWorktree, branchName } from './worktree.js'
 import { spawnDocker } from './spawn-docker.js'
 import { spawnNative } from './spawn-native.js'
 import { commitAndPush, openDraftPr } from './pr.js'
-import { sendDm, buildSuccessMessage, buildFailureMessage } from './notify.js'
 import { writeRun, updateRun, activeRuns } from './state.js'
 import { getAnthropicKey } from './config.js'
 import { getModel } from './models.js'
@@ -57,7 +56,7 @@ async function runTicket(ticket: JiraTicket): Promise<void> {
     startedAt
   })
 
-  console.log(`  → Running in background. Slack DM when done.\n`)
+  console.log(`  → Agent running. Watch this window or switch tmux panes.\n`)
 
   try {
     if (r.runtime === 'claude-docker') {
@@ -69,14 +68,16 @@ async function runTicket(ticket: JiraTicket): Promise<void> {
     commitAndPush(worktree, ticket.key, ticket.summary)
     const prUrl = await openDraftPr(ticket.key, ticket.summary, plan.raw)
     const elapsed = Math.floor((Date.now() - start) / 1000)
+    const mins = Math.floor(elapsed / 60), secs = elapsed % 60
 
     await updateRun(ticket.key, { status: 'done', pr: prUrl, finishedAt: new Date().toISOString() })
-    await sendDm(buildSuccessMessage(ticket.key, ticket.summary, prUrl, elapsed))
+    console.log(`\n  ✅ ${ticket.key} done in ${mins}m ${secs}s`)
+    console.log(`  PR: ${prUrl}`)
     removeWorktree(ticket.key)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     await updateRun(ticket.key, { status: 'failed', error: msg })
-    await sendDm(buildFailureMessage(ticket.key, msg))
+    console.error(`\n  ❌ ${ticket.key} failed: ${msg}`)
   }
 }
 
