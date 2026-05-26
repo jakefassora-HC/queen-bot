@@ -6,10 +6,16 @@ const base: JiraTicket = {
   size: 'small', labels: ['ai-candidate'], status: 'To Do'
 }
 
-test('small ticket routes to claude-docker', () => {
+test('small ticket routes to claude-native (no Docker)', () => {
   const r = route(base)
-  expect(r.runtime).toBe('claude-docker')
+  expect(r.runtime).toBe('claude-native')
   expect(r.approval).toBe('plan')
+})
+
+test('ui label routes to claude-native with MCP', () => {
+  const r = route({ ...base, labels: ['ai-candidate', 'ui'] })
+  expect(r.runtime).toBe('claude-native')
+  expect(r.approval).toBe('design+plan')
 })
 
 test('large ticket routes to claude-native', () => {

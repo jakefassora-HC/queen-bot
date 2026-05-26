@@ -6,9 +6,10 @@ export function route(ticket: JiraTicket): Route {
     return { runtime: null, reason: 'high-risk — handle manually', approval: 'plan' }
   }
 
-  if (ticket.size === 'large' || ticket.labels.includes('big-ticket')) {
-    return { runtime: 'claude-native', reason: 'large ticket — native Claude Code', approval: 'design+plan' }
+  if (ticket.size === 'large' || ticket.labels.includes('big-ticket') || ticket.labels.includes('ui')) {
+    return { runtime: 'claude-native', reason: 'large/UI ticket — native Claude Code with MCP', approval: 'design+plan' }
   }
 
-  return { runtime: 'claude-docker', reason: 'default — isolated container', approval: 'plan' }
+  // claude-docker reserved for when Docker/OrbStack is available
+  return { runtime: 'claude-native', reason: 'default — native Claude Code', approval: 'plan' }
 }
