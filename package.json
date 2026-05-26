@@ -7,7 +7,7 @@
   },
   "scripts": {
     "start": "tsx src/index.ts",
-    "test": "jest"
+    "test": "node --experimental-vm-modules node_modules/.bin/jest"
   },
   "jest": {
     "preset": "ts-jest/presets/default-esm",
