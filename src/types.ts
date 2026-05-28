@@ -23,6 +23,17 @@ export interface JiraTicket {
     key: string
     summary: string
   }
+  subtasks?: Array<{
+    key: string
+    summary: string
+    status: string
+  }>
+  issueLinks?: Array<{
+    key: string
+    summary: string
+    type: string
+    direction: 'inward' | 'outward'
+  }>
   labels: string[]
   status: string
   sprint?: {

@@ -19,6 +19,8 @@ const QUEUE_FIELDS = [
   'project',
   'issuetype',
   'parent',
+  'subtasks',
+  'issuelinks',
   'customfield_10016',
   'customfield_10014',
   'customfield_10020'
@@ -44,6 +46,43 @@ function parseSprintField(value: unknown): JiraTicket['sprint'] {
   }
 
   return undefined
+}
+
+function parseIssueSummary(issue: unknown): { key?: string; fields?: { summary?: string; status?: { name?: string } } } | undefined {
+  return issue as { key?: string; fields?: { summary?: string; status?: { name?: string } } } | undefined
+}
+
+function parseSubtasks(value: unknown): JiraTicket['subtasks'] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap(item => {
+    const issue = parseIssueSummary(item)
+    if (!issue?.key) return []
+    return [{
+      key: issue.key,
+      summary: issue.fields?.summary ?? '',
+      status: issue.fields?.status?.name ?? ''
+    }]
+  })
+}
+
+function parseIssueLinks(value: unknown): JiraTicket['issueLinks'] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap(item => {
+    const link = item as {
+      type?: { name?: string; inward?: string; outward?: string }
+      inwardIssue?: unknown
+      outwardIssue?: unknown
+    }
+    const direction = link.outwardIssue ? 'outward' : 'inward'
+    const issue = parseIssueSummary(link.outwardIssue ?? link.inwardIssue)
+    if (!issue?.key) return []
+    return [{
+      key: issue.key,
+      summary: issue.fields?.summary ?? '',
+      type: link.type?.name ?? (direction === 'outward' ? link.type?.outward : link.type?.inward) ?? '',
+      direction
+    }]
+  })
 }
 
 export function parseRepoLabel(labels: string[]): string | undefined {
@@ -72,6 +111,8 @@ export function parseTicket(issue: Record<string, unknown>): JiraTicket {
     summary: parentIssue.fields?.summary ?? ''
   } : undefined
   const sprint = parseSprintField(fields.customfield_10020)
+  const subtasks = parseSubtasks(fields.subtasks)
+  const issueLinks = parseIssueLinks(fields.issuelinks)
 
   return {
     id: issue.id as string,
@@ -82,6 +123,8 @@ export function parseTicket(issue: Record<string, unknown>): JiraTicket {
     storyPoints: points,
     issueType,
     parent,
+    subtasks,
+    issueLinks,
     labels,
     status: ((fields.status as Record<string, string>)?.name) ?? '',
     sprint,
