@@ -35,6 +35,21 @@ List assigned open tickets:
 npm start
 ```
 
+List assigned open tickets without entering terminal mode:
+
+```bash
+npm start -- list
+```
+
+Print one ticket as Claude-ready context:
+
+```bash
+npm start -- show AISOL-465
+npm start -- show 9
+```
+
+Use `list` and `show` from Claude slash commands. They only read Jira and print context, so the current Claude session can plan from the ticket without launching a nested Claude CLI.
+
 Preview drafts:
 
 ```bash
