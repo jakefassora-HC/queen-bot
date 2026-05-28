@@ -19,6 +19,19 @@ export interface JiraTicket {
   descriptionAdf?: JiraAdfDocument
   storyPoints: number | null
   issueType: string
+  project?: {
+    key: string
+    name: string
+  }
+  priority?: string
+  assignee?: {
+    displayName: string
+    emailAddress?: string
+  }
+  reporter?: {
+    displayName: string
+    emailAddress?: string
+  }
   parent?: {
     key: string
     summary: string
@@ -36,6 +49,28 @@ export interface JiraTicket {
   }>
   labels: string[]
   status: string
+  components?: string[]
+  fixVersions?: string[]
+  affectsVersions?: string[]
+  timeTracking?: {
+    originalEstimate?: string
+    remainingEstimate?: string
+    timeSpent?: string
+  }
+  additionalFields?: Array<{
+    key: string
+    name?: string
+    value: string
+  }>
+  comments?: Array<{
+    author: string
+    created: string
+    body: string
+  }>
+  attachments?: Array<{
+    filename: string
+    url?: string
+  }>
   sprint?: {
     name: string
     state?: string

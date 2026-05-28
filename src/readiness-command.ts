@@ -5,8 +5,23 @@ function pointsLabel(points: number | null): string {
   return points === null ? 'none' : String(points)
 }
 
+function joinedLabel(values: string[] | undefined, fallback = 'none'): string {
+  return values && values.length > 0 ? values.join(', ') : fallback
+}
+
+function ticketContextLine(ticket: JiraTicket): string {
+  const parts = [
+    `${ticket.issueType || 'unknown'} | points: ${pointsLabel(ticket.storyPoints)}`,
+    ticket.priority ? `priority: ${ticket.priority}` : null,
+    (ticket.components ?? []).length > 0 ? `components: ${joinedLabel(ticket.components)}` : null,
+    (ticket.fixVersions ?? []).length > 0 ? `fix: ${joinedLabel(ticket.fixVersions)}` : null
+  ].filter(Boolean)
+
+  return parts.join(' | ')
+}
+
 function epicLabel(ticket: JiraTicket): string {
-  return ticket.parent?.summary || 'No epic'
+  return ticket.parent?.summary?.trim() || 'No epic'
 }
 
 function sprintSection(ticket: JiraTicket): 'Current Sprint' | 'Backlog' {
@@ -78,7 +93,7 @@ export function formatQueenDashboard(tickets: JiraTicket[], limit = tickets.leng
         const nextAction = readiness.canExecute ? 'ready to discuss execution' : 'plan before execution'
         lines.push(`- [ ] ${ticketNumber(ticket, tickets)}. ${ticket.key} - ${readiness.score}% ${readiness.band} - ${ticket.status || 'unknown'}`)
         lines.push(`  ${ticket.summary}`)
-        lines.push(`  ${ticket.issueType || 'unknown'} | points: ${pointsLabel(ticket.storyPoints)} | next: ${nextAction}`)
+        lines.push(`  ${ticketContextLine(ticket)} | next: ${nextAction}`)
         if (!readiness.canExecute) lines.push(`  Missing: ${readiness.missing.join(', ')}`)
         lines.push('')
       }

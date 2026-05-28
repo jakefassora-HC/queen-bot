@@ -45,6 +45,29 @@ test('formatQueenDashboard renders a human-friendly checkbox dashboard', () => {
   expect(output).toContain('Reply with a number/key')
 })
 
+test('formatQueenDashboard surfaces richer Jira details in ticket rows', () => {
+  const tickets: JiraTicket[] = [{
+    id: '1',
+    key: 'AISOL-592',
+    summary: 'Update SanKey to include all details on flow',
+    description: 'User story\nAs a user, I want the Sankey to explain each stage.\n\nContext\nCurrent flow is too thin.\n\nAcceptance criteria\n- Include kicked out reasons.',
+    storyPoints: null,
+    issueType: 'Story',
+    labels: [],
+    status: 'In Progress',
+    parent: { key: 'AISOL-97', summary: 'Roadwarrior' },
+    components: ['Sankey'],
+    fixVersions: ['v2'],
+    priority: 'High'
+  }]
+
+  const output = formatQueenDashboard(tickets)
+
+  expect(output).toContain('priority: High')
+  expect(output).toContain('components: Sankey')
+  expect(output).toContain('fix: v2')
+})
+
 test('formatQueenDashboard shows every ticket by default', () => {
   const tickets: JiraTicket[] = Array.from({ length: 9 }, (_, index) => ({
     id: String(index + 1),
