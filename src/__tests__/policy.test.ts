@@ -4,7 +4,7 @@ import type { JiraTicket } from '../types.js'
 
 const base: JiraTicket = {
   id: '1', key: 'TOOL-1', summary: 'test', description: 'test',
-  size: 'small', labels: [], status: 'To Do'
+  storyPoints: null, issueType: 'Story', labels: [], status: 'To Do'
 }
 
 test('high-risk label blocks ticket', () => {

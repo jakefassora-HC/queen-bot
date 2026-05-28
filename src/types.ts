@@ -3,10 +3,42 @@ export interface JiraTicket {
   key: string
   summary: string
   description: string
-  size: 'small' | 'medium' | 'large'
+  storyPoints: number | null
+  issueType: string
+  parent?: {
+    key: string
+    summary: string
+  }
   labels: string[]
   status: string
   repo?: string  // parsed from label "repo:owner/name"
+}
+
+export interface ResearchSource {
+  title: string
+  url: string
+  notes: string
+}
+
+export interface TicketDraft {
+  summary: string
+  issueType: string
+  problem: string
+  goal: string
+  nonGoals: string[]
+  acceptanceCriteria: string[]
+  researchNotes: string[]
+  risks: string[]
+  definitionOfDone: string[]
+  labels: string[]
+  relatedRepos: string[]
+}
+
+export interface TicketDraftRequest {
+  idea: string
+  sources: ResearchSource[]
+  projectKey: string
+  maxTickets: number
 }
 
 export interface Plan {

@@ -8,20 +8,15 @@ import { spawnNative } from './spawn-native.js'
 import { commitAndPush, openDraftPr } from './pr.js'
 import { writeRun, updateRun, activeRuns } from './state.js'
 import { getModel } from './models.js'
+import { runDraftCommand } from './draft-command.js'
+import { getJiraConfig } from './config.js'
+import { formatQueue, formatTicketDetails, resolveTicketSelection } from './queue-command.js'
+import { canStartCmuxFromEnv, cmuxStartHelp, formatCmuxCommand, openCmuxTicketWorkspace } from './cmux.js'
 import type { JiraTicket } from './types.js'
 
 function prompt(q: string): Promise<string> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
   return new Promise(resolve => rl.question(q, a => { rl.close(); resolve(a.trim()) }))
-}
-
-function renderQueue(tickets: JiraTicket[]): void {
-  console.log('\n  agent-queue\n  ' + '─'.repeat(50))
-  tickets.forEach((t, i) => {
-    const size = t.size.padEnd(6)
-    console.log(`  ${i + 1}. ${t.key}  ${size}  ${t.summary}`)
-  })
-  console.log('  ' + '─'.repeat(50))
 }
 
 async function runTicket(ticket: JiraTicket): Promise<void> {
@@ -60,7 +55,7 @@ async function runTicket(ticket: JiraTicket): Promise<void> {
     startedAt
   })
 
-  console.log(`  → Agent running. Watch this window or switch tmux panes.\n`)
+  console.log(`  → Agent running. Watch this window or switch cmux workspaces.\n`)
 
   try {
     if (r.runtime === 'claude-docker') {
@@ -85,8 +80,30 @@ async function runTicket(ticket: JiraTicket): Promise<void> {
   }
 }
 
+async function loadQueue(): Promise<JiraTicket[] | null> {
+  try {
+    const tickets = await fetchQueue()
+    if (tickets.length === 0) {
+      const config = getJiraConfig()
+      const scope = config.project ? ` in ${config.project}` : ''
+      console.log(`No open tickets assigned to ${config.email}${scope}.`)
+      return null
+    }
+
+    return tickets
+  } catch (err) {
+    console.error(`  ❌ Jira error: ${err instanceof Error ? err.message : String(err)}`)
+    return null
+  }
+}
+
 export async function main(): Promise<void> {
   const args = process.argv.slice(2)
+
+  if (args[0] === 'draft') {
+    await runDraftCommand(args.slice(1))
+    return
+  }
 
   if (args[0] === 'status') {
     const runs = await activeRuns()
@@ -95,16 +112,89 @@ export async function main(): Promise<void> {
     return
   }
 
-  let tickets
-  try {
-    tickets = await fetchQueue()
-  } catch (err) {
-    console.error(`  ❌ Jira error: ${err instanceof Error ? err.message : String(err)}`)
+  const tickets = await loadQueue()
+  if (!tickets) {
     return
   }
-  if (tickets.length === 0) { console.log(`No open tickets assigned to ${process.env.JIRA_EMAIL} in ${process.env.JIRA_PROJECT}.`); return }
 
-  renderQueue(tickets)
+  if (args[0] === 'list') {
+    console.log(formatQueue(tickets))
+    return
+  }
+
+  if (args[0] === 'show') {
+    const selection = args[1]
+    if (!selection) {
+      console.error('Usage: agent-queue show <ticket-number-or-key>')
+      process.exitCode = 1
+      return
+    }
+
+    const ticket = resolveTicketSelection(tickets, selection)
+    if (!ticket) {
+      console.error(`Ticket not found in current queue: ${selection}`)
+      process.exitCode = 1
+      return
+    }
+
+    console.log(formatTicketDetails(ticket))
+    return
+  }
+
+  if (args[0] === 'run') {
+    const selection = args[1]
+    if (!selection) {
+      console.error('Usage: agent-queue run <ticket-number-or-key>')
+      process.exitCode = 1
+      return
+    }
+
+    const ticket = resolveTicketSelection(tickets, selection)
+    if (!ticket) {
+      console.error(`Ticket not found in current queue: ${selection}`)
+      process.exitCode = 1
+      return
+    }
+
+    await runTicket(ticket)
+    return
+  }
+
+  if (args[0] === 'cmux') {
+    const start = args.includes('--start')
+    const selections = args.slice(1).filter(arg => arg !== '--start')
+    if (selections.length === 0) {
+      console.error('Usage: agent-queue cmux <ticket-number-or-key...> [--start]')
+      process.exitCode = 1
+      return
+    }
+
+    const selectedTickets = selections.map(selection => {
+      const ticket = resolveTicketSelection(tickets, selection)
+      if (!ticket) throw new Error(`Ticket not found in current queue: ${selection}`)
+      return ticket
+    })
+
+    if (!start) {
+      console.log('Preview only. Add --start after Jake approves opening these cmux workspaces.\n')
+      selectedTickets.forEach(ticket => console.log(formatCmuxCommand(process.cwd(), ticket.key)))
+      return
+    }
+
+    if (!canStartCmuxFromEnv()) {
+      console.error(cmuxStartHelp())
+      process.exitCode = 1
+      return
+    }
+
+    for (const ticket of selectedTickets) {
+      await openCmuxTicketWorkspace(process.cwd(), ticket.key)
+      console.log(`Opened cmux workspace ${ticket.key}`)
+    }
+    return
+  }
+
+  console.log(formatQueue(tickets))
   const input = await prompt('\n  Pick tickets (e.g. 1,3): ')
   const selected = input.split(',').map(s => parseInt(s.trim()) - 1).filter(i => i >= 0 && i < tickets.length)
 

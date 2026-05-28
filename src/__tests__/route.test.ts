@@ -3,7 +3,7 @@ import type { JiraTicket } from '../types.js'
 
 const base: JiraTicket = {
   id: '1', key: 'TOOL-1', summary: 'test', description: 'test',
-  size: 'small', labels: ['ai-candidate'], status: 'To Do'
+  storyPoints: null, issueType: 'Story', labels: ['ai-candidate'], status: 'To Do'
 }
 
 test('small ticket routes to claude-native (no Docker)', () => {
@@ -19,7 +19,7 @@ test('ui label routes to claude-native with MCP', () => {
 })
 
 test('large ticket routes to claude-native', () => {
-  const r = route({ ...base, size: 'large' })
+  const r = route({ ...base, storyPoints: 8 })
   expect(r.runtime).toBe('claude-native')
   expect(r.approval).toBe('design+plan')
 })

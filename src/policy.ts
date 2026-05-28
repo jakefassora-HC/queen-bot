@@ -19,7 +19,8 @@ const MAX_DIFF_LINES = 500
 const MAX_FILES_CHANGED = 10
 
 export function isHighRisk(ticket: JiraTicket): boolean {
-  return ticket.labels.includes('risk-high') || ticket.size === 'large' && ticket.labels.includes('no-ai')
+  const isLarge = ticket.storyPoints !== null && ticket.storyPoints > 5
+  return ticket.labels.includes('risk-high') || isLarge && ticket.labels.includes('no-ai')
 }
 
 export function isBlockedPath(filePath: string): boolean {
