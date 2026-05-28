@@ -26,7 +26,7 @@ export function formatReadinessQueue(tickets: JiraTicket[]): string {
   return lines.join('\n')
 }
 
-export function formatQueenDashboard(tickets: JiraTicket[], limit = 8): string {
+export function formatQueenDashboard(tickets: JiraTicket[], limit = tickets.length): string {
   const visibleTickets = tickets.slice(0, limit)
   const readyCount = tickets.filter(ticket => scoreTicketReadiness(ticket).canExecute).length
   const epicCounts = tickets.reduce<Record<string, number>>((counts, ticket) => {
@@ -64,12 +64,6 @@ export function formatQueenDashboard(tickets: JiraTicket[], limit = 8): string {
       if (!readiness.canExecute) lines.push(`  Missing: ${readiness.missing.join(', ')}`)
       lines.push('')
     }
-  }
-
-  const remaining = tickets.length - visibleTickets.length
-  if (remaining > 0) {
-    lines.push(`+ ${remaining} more hidden to keep this readable. Run \`agent-queue dashboard --all\` or \`agent-queue list\` for everything.`)
-    lines.push('')
   }
 
   lines.push('Reply with a number/key to inspect, or multiple numbers/keys to plan a batch.')
