@@ -2,19 +2,21 @@
 
 Open Queen Bot as a human-friendly Jira planning dashboard inside this Claude session. Do not launch a nested Claude process.
 
+Run this command exactly once:
+
 ```bash
 cd ~/projects/agent-queue && agent-queue dashboard
 ```
 
-Render the output back to Jake in the chat as an expanded dashboard:
+Show the dashboard output in chat:
 
-- Start with `Queen Bot planning dashboard`.
-- Use Markdown checkboxes for tickets.
-- Keep the dashboard readable: ticket key, readiness percent, status, parent/epic, summary, and next action.
-- Preserve the Current Sprint and Backlog sections plus grouped-by-epic sections from the CLI output.
+- Do not call `/queen` from inside this command.
+- Do not rerun the dashboard command unless Jake explicitly asks to refresh.
+- Do not summarize, compact, reorder, or rewrite the ticket list.
+- Always preserve the dashboard line breaks, headings, checkbox rows, and indentation from the CLI output.
+- Keep every visible ticket from the CLI output; do not collapse tickets into one sentence.
 - Never convert the dashboard to a Markdown table or box-drawing table; tables wrap badly and waste tokens.
-- Do not paste a giant raw terminal wall unless Jake asks for raw output.
-- Ask: "Which boxes should Queen Bot open up?"
+- After the dashboard, add only: `Reply with one or more numbers/keys.`
 
 When Jake selects tickets, run:
 

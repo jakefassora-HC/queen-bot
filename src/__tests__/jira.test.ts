@@ -79,6 +79,47 @@ test('parseTicket maps subtasks and linked work items', () => {
   expect(ticket.issueLinks).toEqual([{ key: 'TOOL-50', summary: 'Related API work', type: 'Relates', direction: 'outward' }])
 })
 
+test('parseTicket maps Jira details exposed outside the description', () => {
+  const ticket = parseTicket({
+    ...rawIssue,
+    fields: {
+      ...rawIssue.fields,
+      project: { key: 'TOOL', name: 'AI Toolshed' },
+      priority: { name: 'High' },
+      assignee: { displayName: 'Jake Fassora', emailAddress: 'jake@example.com' },
+      reporter: { displayName: 'Reporter Person' },
+      components: [{ name: 'Sankey' }, { name: 'Salesforce' }],
+      fixVersions: [{ name: 'v2' }],
+      versions: [{ name: 'v1' }],
+      timetracking: { originalEstimate: '2h', remainingEstimate: '1h' },
+      customfield_10001: { name: 'Growth Team' },
+      comment: {
+        comments: [{
+          author: { displayName: 'Jake Fassora' },
+          created: '2026-05-28T12:00:00.000-0600',
+          body: { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Look at the Salesforce edge case.' }] }] }
+        }]
+      },
+      attachment: [{
+        filename: 'flow.png',
+        content: 'https://example.atlassian.net/attachment/flow.png'
+      }]
+    }
+  }, { customfield_10001: 'Team' })
+
+  expect(ticket.project).toEqual({ key: 'TOOL', name: 'AI Toolshed' })
+  expect(ticket.priority).toBe('High')
+  expect(ticket.assignee?.displayName).toBe('Jake Fassora')
+  expect(ticket.reporter?.displayName).toBe('Reporter Person')
+  expect(ticket.components).toEqual(['Sankey', 'Salesforce'])
+  expect(ticket.fixVersions).toEqual(['v2'])
+  expect(ticket.affectsVersions).toEqual(['v1'])
+  expect(ticket.timeTracking).toEqual({ originalEstimate: '2h', remainingEstimate: '1h' })
+  expect(ticket.additionalFields).toContainEqual({ key: 'customfield_10001', name: 'Team', value: 'Growth Team' })
+  expect(ticket.comments).toEqual([{ author: 'Jake Fassora', created: '2026-05-28T12:00:00.000-0600', body: 'Look at the Salesforce edge case.' }])
+  expect(ticket.attachments).toEqual([{ filename: 'flow.png', url: 'https://example.atlassian.net/attachment/flow.png' }])
+})
+
 test('adfToPlainText preserves headings and list lines for Agent Q plans', () => {
   const text = adfToPlainText({
     type: 'doc',
@@ -120,8 +161,7 @@ test('buildQueueSearchUrl explicitly requests fields needed by parseTicket', () 
   const url = buildQueueSearchUrl('https://example.atlassian.net', buildQueueJql('TOOL'), 20)
 
   expect(url).toContain('/rest/api/3/search/jql?')
-  expect(decodeURIComponent(url)).toContain('fields=summary,status,labels,description,assignee,project,issuetype,parent,subtasks,issuelinks,customfield_10016,customfield_10014')
-  expect(decodeURIComponent(url)).toContain('customfield_10020')
+  expect(decodeURIComponent(url)).toContain('fields=*all')
 })
 
 test('verifyJiraAuth throws a useful error on invalid credentials', async () => {

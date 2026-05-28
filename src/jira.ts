@@ -11,19 +11,7 @@ function authHeader(email: string): string {
 type Fetcher = typeof fetch
 
 const QUEUE_FIELDS = [
-  'summary',
-  'status',
-  'labels',
-  'description',
-  'assignee',
-  'project',
-  'issuetype',
-  'parent',
-  'subtasks',
-  'issuelinks',
-  'customfield_10016',
-  'customfield_10014',
-  'customfield_10020'
+  '*all'
 ]
 
 type JiraSprintField = {
@@ -85,6 +73,111 @@ function parseIssueLinks(value: unknown): JiraTicket['issueLinks'] {
   })
 }
 
+function parseNamedArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap(item => {
+    if (typeof item === 'string') return [item]
+    if (!item || typeof item !== 'object') return []
+    const name = (item as { name?: unknown }).name
+    return typeof name === 'string' && name.trim() ? [name] : []
+  })
+}
+
+function parseUser(value: unknown): JiraTicket['assignee'] {
+  if (!value || typeof value !== 'object') return undefined
+  const user = value as { displayName?: unknown; emailAddress?: unknown }
+  if (typeof user.displayName !== 'string' || !user.displayName.trim()) return undefined
+  return {
+    displayName: user.displayName,
+    emailAddress: typeof user.emailAddress === 'string' ? user.emailAddress : undefined
+  }
+}
+
+function parseProject(value: unknown): JiraTicket['project'] {
+  if (!value || typeof value !== 'object') return undefined
+  const project = value as { key?: unknown; name?: unknown }
+  if (typeof project.key !== 'string' || !project.key.trim()) return undefined
+  return {
+    key: project.key,
+    name: typeof project.name === 'string' ? project.name : ''
+  }
+}
+
+function parseNamedValue(value: unknown): string | undefined {
+  if (typeof value === 'string' && value.trim()) return value
+  if (!value || typeof value !== 'object') return undefined
+  const named = value as { name?: unknown; value?: unknown; displayName?: unknown; key?: unknown; summary?: unknown }
+  for (const key of ['name', 'value', 'displayName', 'key', 'summary'] as const) {
+    const candidate = named[key]
+    if (typeof candidate === 'string' && candidate.trim()) return candidate
+  }
+  return undefined
+}
+
+function parseTimeTracking(value: unknown): JiraTicket['timeTracking'] {
+  if (!value || typeof value !== 'object') return undefined
+  const tracking = value as { originalEstimate?: unknown; remainingEstimate?: unknown; timeSpent?: unknown }
+  const parsed = {
+    originalEstimate: typeof tracking.originalEstimate === 'string' ? tracking.originalEstimate : undefined,
+    remainingEstimate: typeof tracking.remainingEstimate === 'string' ? tracking.remainingEstimate : undefined,
+    timeSpent: typeof tracking.timeSpent === 'string' ? tracking.timeSpent : undefined
+  }
+  return Object.values(parsed).some(Boolean) ? parsed : undefined
+}
+
+function summarizeFieldValue(value: unknown): string | undefined {
+  if (value === null || value === undefined || value === '') return undefined
+  if (typeof value === 'string') return value.trim() || undefined
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (Array.isArray(value)) {
+    const items = value.flatMap(item => summarizeFieldValue(item) ?? [])
+    return items.length > 0 ? items.join(', ') : undefined
+  }
+  if (typeof value === 'object') {
+    const named = parseNamedValue(value)
+    if (named) return named
+  }
+  return undefined
+}
+
+function parseComments(value: unknown): JiraTicket['comments'] {
+  const comments = (value as { comments?: unknown[] } | undefined)?.comments
+  if (!Array.isArray(comments)) return []
+  return comments.flatMap(comment => {
+    if (!comment || typeof comment !== 'object') return []
+    const item = comment as { author?: unknown; created?: unknown; body?: unknown }
+    const author = parseUser(item.author)?.displayName ?? 'unknown'
+    const created = typeof item.created === 'string' ? item.created : ''
+    const body = adfToPlainText(item.body as JiraAdfDocument | undefined).trim()
+    return body ? [{ author, created, body }] : []
+  })
+}
+
+function parseAttachments(value: unknown): JiraTicket['attachments'] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap(attachment => {
+    if (!attachment || typeof attachment !== 'object') return []
+    const item = attachment as { filename?: unknown; content?: unknown }
+    if (typeof item.filename !== 'string' || !item.filename.trim()) return []
+    return [{
+      filename: item.filename,
+      url: typeof item.content === 'string' ? item.content : undefined
+    }]
+  })
+}
+
+function parseAdditionalFields(
+  fields: Record<string, unknown>,
+  fieldNames: Record<string, string> = {}
+): JiraTicket['additionalFields'] {
+  const ignored = new Set(['customfield_10016', 'customfield_10014', 'customfield_10020'])
+  return Object.entries(fields).flatMap(([key, value]) => {
+    if (!key.startsWith('customfield_') || ignored.has(key)) return []
+    const summary = summarizeFieldValue(value)
+    return summary ? [{ key, name: fieldNames[key], value: summary.slice(0, 240) }] : []
+  })
+}
+
 export function parseRepoLabel(labels: string[]): string | undefined {
   const repoLabel = labels.find(l => l.startsWith('repo:'))
   const repo = repoLabel ? repoLabel.slice(5) : undefined
@@ -95,7 +188,7 @@ export function parseRepoLabel(labels: string[]): string | undefined {
   return repo
 }
 
-export function parseTicket(issue: Record<string, unknown>): JiraTicket {
+export function parseTicket(issue: Record<string, unknown>, fieldNames: Record<string, string> = {}): JiraTicket {
   const fields = issue.fields as Record<string, unknown>
   const points = typeof fields.customfield_10016 === 'number' ? fields.customfield_10016 : null
 
@@ -113,6 +206,7 @@ export function parseTicket(issue: Record<string, unknown>): JiraTicket {
   const sprint = parseSprintField(fields.customfield_10020)
   const subtasks = parseSubtasks(fields.subtasks)
   const issueLinks = parseIssueLinks(fields.issuelinks)
+  const priority = parseNamedValue(fields.priority)
 
   return {
     id: issue.id as string,
@@ -122,25 +216,49 @@ export function parseTicket(issue: Record<string, unknown>): JiraTicket {
     descriptionAdf,
     storyPoints: points,
     issueType,
+    project: parseProject(fields.project),
+    priority,
+    assignee: parseUser(fields.assignee),
+    reporter: parseUser(fields.reporter),
     parent,
     subtasks,
     issueLinks,
     labels,
     status: ((fields.status as Record<string, string>)?.name) ?? '',
+    components: parseNamedArray(fields.components),
+    fixVersions: parseNamedArray(fields.fixVersions),
+    affectsVersions: parseNamedArray(fields.versions),
+    timeTracking: parseTimeTracking(fields.timetracking),
+    additionalFields: parseAdditionalFields(fields, fieldNames),
+    comments: parseComments(fields.comment),
+    attachments: parseAttachments(fields.attachment),
     sprint,
     repo
   }
+}
+
+async function fetchFieldNameMap(config: JiraConfig, auth: string): Promise<Record<string, string>> {
+  const res = await fetch(`${config.baseUrl}/rest/api/3/field`, {
+    headers: { Authorization: auth, Accept: 'application/json' }
+  })
+  if (!res.ok) return {}
+  const fields = await res.json() as Array<{ id?: string; name?: string }>
+  return fields.reduce<Record<string, string>>((fieldNames, field) => {
+    if (field.id && field.name) fieldNames[field.id] = field.name
+    return fieldNames
+  }, {})
 }
 
 export async function fetchQueue(): Promise<JiraTicket[]> {
   const config = requireJiraConfig()
   const auth = authHeader(config.email)
   await verifyJiraAuth(config, auth)
+  const fieldNames = await fetchFieldNameMap(config, auth)
   const url = buildQueueSearchUrl(config.baseUrl, buildQueueJql(config.project), 20)
   const res = await fetch(url, { headers: { Authorization: auth, Accept: 'application/json' } })
   if (!res.ok) throw new Error(`Jira error ${res.status}: ${await res.text()}`)
   const data = await res.json() as { issues: unknown[] }
-  return data.issues.map(i => parseTicket(i as Record<string, unknown>))
+  return data.issues.map(i => parseTicket(i as Record<string, unknown>, fieldNames))
 }
 
 export function buildQueueJql(project?: string): string {
@@ -215,6 +333,7 @@ function textNode(text: string): JiraAdfNode {
 }
 
 function collectInlineText(node: JiraAdfNode): string {
+  if (node.type === 'hardBreak') return '\n'
   if (node.text) return node.text
   return (node.content ?? []).map(collectInlineText).join('')
 }
