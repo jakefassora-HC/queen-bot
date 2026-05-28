@@ -12,6 +12,9 @@ import { runDraftCommand } from './draft-command.js'
 import { getJiraConfig } from './config.js'
 import { formatQueue, formatTicketDetails, resolveTicketSelection } from './queue-command.js'
 import { canStartCmuxFromEnv, cmuxStartHelp, formatCmuxCommand, openCmuxTicketWorkspace } from './cmux.js'
+import { formatReadinessQueue } from './readiness-command.js'
+import { runPlanCommand } from './plan-command.js'
+import { runProofCommand } from './proof.js'
 import type { JiraTicket } from './types.js'
 
 function prompt(q: string): Promise<string> {
@@ -117,8 +120,23 @@ export async function main(): Promise<void> {
     return
   }
 
+  if (args[0] === 'proof') {
+    await runProofCommand(args.slice(1), tickets)
+    return
+  }
+
   if (args[0] === 'list') {
     console.log(formatQueue(tickets))
+    return
+  }
+
+  if (args[0] === 'readiness') {
+    console.log(formatReadinessQueue(tickets))
+    return
+  }
+
+  if (args[0] === 'plan') {
+    await runPlanCommand(args.slice(1), tickets)
     return
   }
 
@@ -194,12 +212,14 @@ export async function main(): Promise<void> {
     return
   }
 
-  console.log(formatQueue(tickets))
-  const input = await prompt('\n  Pick tickets (e.g. 1,3): ')
+  console.log(formatReadinessQueue(tickets))
+  const input = await prompt('\n  Pick tickets to preview Agent Q plans (Enter to skip): ')
+  if (!input) return
+
   const selected = input.split(',').map(s => parseInt(s.trim()) - 1).filter(i => i >= 0 && i < tickets.length)
 
   for (const idx of selected) {
-    await runTicket(tickets[idx])
+    await runPlanCommand([tickets[idx].key], tickets)
   }
 }
 

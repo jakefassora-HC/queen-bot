@@ -1,7 +1,10 @@
 import {
+  adfToPlainText,
+  appendTextToDescriptionAdf,
   buildCreateIssuePayload,
   buildQueueJql,
   buildQueueSearchUrl,
+  buildUpdateDescriptionPayload,
   parseTicket,
   verifyJiraAuth
 } from '../jira.js'
@@ -30,6 +33,26 @@ test('parseTicket maps Jira API response to JiraTicket', () => {
   expect(ticket.issueType).toBe('Story')
   expect(ticket.parent?.key).toBe('TOOL-1')
   expect(ticket.parent?.summary).toBe('Parent epic')
+})
+
+test('adfToPlainText preserves headings and list lines for Agent Q plans', () => {
+  const text = adfToPlainText({
+    type: 'doc',
+    version: 1,
+    content: [
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Agent Q Plan' }] },
+      { type: 'paragraph', content: [{ type: 'text', text: 'Ticket: AISOL-465' }] },
+      {
+        type: 'bulletList',
+        content: [{
+          type: 'listItem',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Run tests' }] }]
+        }]
+      }
+    ]
+  })
+
+  expect(text).toBe('## Agent Q Plan\nTicket: AISOL-465\n- Run tests')
 })
 
 test('parseTicket keeps story points nullable instead of inventing a size', () => {
@@ -91,4 +114,31 @@ test('buildCreateIssuePayload turns a draft into Jira ADF fields', () => {
   expect(payload.fields.labels).toContain('agent-draft')
   expect(payload.fields.description.type).toBe('doc')
   expect(JSON.stringify(payload.fields.description)).toContain('Acceptance Criteria')
+})
+
+test('appendTextToDescriptionAdf preserves existing ADF nodes when adding Agent Q text', () => {
+  const description = appendTextToDescriptionAdf({
+    type: 'doc',
+    version: 1,
+    content: [{
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'Existing rich context' }]
+    }]
+  }, '## Agent Q Plan\n\nTicket: AISOL-465')
+
+  expect(description.content[0]).toEqual({
+    type: 'paragraph',
+    content: [{ type: 'text', text: 'Existing rich context' }]
+  })
+  expect(adfToPlainText(description)).toContain('## Agent Q Plan')
+  expect(adfToPlainText(description)).toContain('Ticket: AISOL-465')
+})
+
+test('buildUpdateDescriptionPayload creates Jira ADF update body', () => {
+  const description = appendTextToDescriptionAdf(null, 'Existing context\n\n## Agent Q Plan\nTicket: AISOL-465')
+  const payload = buildUpdateDescriptionPayload(description)
+
+  expect(payload.fields.description.type).toBe('doc')
+  expect(payload.fields.description.content).toHaveLength(2)
+  expect(JSON.stringify(payload)).toContain('Agent Q Plan')
 })
