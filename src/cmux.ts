@@ -33,9 +33,26 @@ export function cmuxStartHelp(): string {
   ].join('\n')
 }
 
+export function buildClaudeHandoffPrompt(ticketKey: string): string {
+  const key = cmuxWorkspaceName(ticketKey)
+  return [
+    `You are Agent Q for Jira ticket ${key}.`,
+    'Start by running:',
+    `cd ~/projects/agent-queue && agent-queue show ${key}`,
+    'Use that Jira output as source context in this Claude session.',
+    'If the ticket has no description, ask Jake what the ticket should mean and draft Jira-ready content first.',
+    'Do not create, update, or transition Jira tickets without Jake explicitly approving the exact write.',
+    'Do not run agent-queue run from inside this session; that would spawn another non-interactive Claude process.',
+    'After you understand the ticket, propose the plan and wait for Jake before implementing.'
+  ].join(' ')
+}
+
 export function buildCmuxAgentCommand(ticketKey: string, cmuxBinary = resolveCmuxBinary()): string {
   const key = cmuxWorkspaceName(ticketKey)
-  return `${shellPreviewQuote(cmuxBinary)} rename-workspace ${shellPreviewQuote(key)} && agent-queue run ${shellPreviewQuote(key)}`
+  return [
+    `${shellPreviewQuote(cmuxBinary)} rename-workspace ${shellPreviewQuote(key)}`,
+    `claude --name ${shellPreviewQuote(key)} ${shellPreviewQuote(buildClaudeHandoffPrompt(key))}`
+  ].join(' && ')
 }
 
 export function buildCmuxWorkspaceArgs(
