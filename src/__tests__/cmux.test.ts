@@ -10,23 +10,21 @@ test('cmuxWorkspaceName uses the Jira key for easy scanning', () => {
   expect(cmuxWorkspaceName('aisol-465')).toBe('AISOL-465')
 })
 
-test('buildCmuxWorkspaceArgs opens a named workspace that runs one ticket flow', () => {
-  const args = buildCmuxWorkspaceArgs('/Users/jakefassora/projects/agent-queue', 'AISOL-465')
+test('buildCmuxWorkspaceArgs creates a workspace and renames it from inside cmux', () => {
+  const args = buildCmuxWorkspaceArgs('/Users/jakefassora/projects/agent-queue', 'AISOL-465', 'cmux')
 
   expect(args).toEqual([
     'new-workspace',
-    '--name',
-    'AISOL-465',
     '--cwd',
     '/Users/jakefassora/projects/agent-queue',
     '--command',
-    'agent-queue run AISOL-465'
+    'cmux rename-workspace AISOL-465 && agent-queue run AISOL-465'
   ])
 })
 
 test('formatCmuxCommand previews the exact command that will run', () => {
   expect(formatCmuxCommand('/Users/jakefassora/projects/agent-queue', 'AISOL-465', 'cmux')).toBe(
-    'cmux new-workspace --name AISOL-465 --cwd /Users/jakefassora/projects/agent-queue --command "agent-queue run AISOL-465"'
+    'cmux new-workspace --cwd /Users/jakefassora/projects/agent-queue --command "cmux rename-workspace AISOL-465 && agent-queue run AISOL-465"'
   )
 })
 

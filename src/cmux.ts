@@ -21,20 +21,23 @@ export function resolveCmuxBinary(
   return 'cmux'
 }
 
-export function buildCmuxAgentCommand(ticketKey: string): string {
-  return `agent-queue run ${cmuxWorkspaceName(ticketKey)}`
+export function buildCmuxAgentCommand(ticketKey: string, cmuxBinary = resolveCmuxBinary()): string {
+  const key = cmuxWorkspaceName(ticketKey)
+  return `${shellPreviewQuote(cmuxBinary)} rename-workspace ${shellPreviewQuote(key)} && agent-queue run ${shellPreviewQuote(key)}`
 }
 
-export function buildCmuxWorkspaceArgs(projectDir: string, ticketKey: string): string[] {
+export function buildCmuxWorkspaceArgs(
+  projectDir: string,
+  ticketKey: string,
+  cmuxBinary = resolveCmuxBinary()
+): string[] {
   const key = cmuxWorkspaceName(ticketKey)
   return [
     'new-workspace',
-    '--name',
-    key,
     '--cwd',
     projectDir,
     '--command',
-    buildCmuxAgentCommand(key)
+    buildCmuxAgentCommand(key, cmuxBinary)
   ]
 }
 
@@ -43,12 +46,13 @@ export function formatCmuxCommand(
   ticketKey: string,
   binary = resolveCmuxBinary()
 ): string {
-  return [binary, ...buildCmuxWorkspaceArgs(projectDir, ticketKey).map(shellPreviewQuote)].join(' ')
+  return [binary, ...buildCmuxWorkspaceArgs(projectDir, ticketKey, binary).map(shellPreviewQuote)].join(' ')
 }
 
 export function openCmuxTicketWorkspace(projectDir: string, ticketKey: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    const proc = spawn(resolveCmuxBinary(), buildCmuxWorkspaceArgs(projectDir, ticketKey), {
+    const binary = resolveCmuxBinary()
+    const proc = spawn(binary, buildCmuxWorkspaceArgs(projectDir, ticketKey, binary), {
       stdio: 'inherit',
       shell: false
     })
