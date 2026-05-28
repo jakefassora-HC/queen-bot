@@ -1,6 +1,7 @@
 import {
   DEFAULT_CMUX_BINARY,
   buildCmuxWorkspaceArgs,
+  canStartCmuxFromEnv,
   cmuxWorkspaceName,
   formatCmuxCommand,
   resolveCmuxBinary
@@ -32,4 +33,10 @@ test('resolveCmuxBinary prefers env, then the app bundle, then PATH', () => {
   expect(resolveCmuxBinary({ CMUX_BIN: '/custom/cmux' }, () => false)).toBe('/custom/cmux')
   expect(resolveCmuxBinary({}, path => path === DEFAULT_CMUX_BINARY)).toBe(DEFAULT_CMUX_BINARY)
   expect(resolveCmuxBinary({}, () => false)).toBe('cmux')
+})
+
+test('canStartCmuxFromEnv requires an inside-cmux shell unless explicitly overridden', () => {
+  expect(canStartCmuxFromEnv({})).toBe(false)
+  expect(canStartCmuxFromEnv({ CMUX_WORKSPACE_ID: 'workspace:1' })).toBe(true)
+  expect(canStartCmuxFromEnv({ AGENT_QUEUE_ALLOW_EXTERNAL_CMUX: '1' })).toBe(true)
 })

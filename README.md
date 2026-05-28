@@ -64,7 +64,9 @@ npm start -- cmux AISOL-465 AISOL-540 --start
 
 Each cmux workspace is named by ticket key and runs `agent-queue run <ticket-key>`.
 
-If cmux returns `TabManager not available`, open or focus the cmux app and retry the `--start` command. Agent Queue does not require the newer `cmux new-workspace --name` flag; it creates the workspace with `--command` and renames it from inside cmux.
+Run `--start` from a terminal inside cmux. By default cmux only allows processes started inside cmux to control workspaces; running `--start` from macOS Terminal or a Claude session outside cmux can fail with `Access denied` or `TabManager not available`.
+
+Agent Queue does not require the newer `cmux new-workspace --name` flag; it creates the workspace with `--command` and renames it from inside cmux. If you intentionally change cmux socket access settings to allow external local processes, set `AGENT_QUEUE_ALLOW_EXTERNAL_CMUX=1` before running `--start`.
 
 Preview drafts:
 

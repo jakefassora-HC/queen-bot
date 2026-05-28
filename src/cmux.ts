@@ -21,6 +21,18 @@ export function resolveCmuxBinary(
   return 'cmux'
 }
 
+export function canStartCmuxFromEnv(env: NodeJS.ProcessEnv = process.env): boolean {
+  return Boolean(env.CMUX_WORKSPACE_ID || env.AGENT_QUEUE_ALLOW_EXTERNAL_CMUX === '1')
+}
+
+export function cmuxStartHelp(): string {
+  return [
+    'cmux start is blocked from this shell.',
+    'Your cmux app is configured to allow only processes started inside cmux to control workspaces.',
+    'Run this command from a terminal inside cmux, or set AGENT_QUEUE_ALLOW_EXTERNAL_CMUX=1 after changing cmux socket access settings to allow external local processes.'
+  ].join('\n')
+}
+
 export function buildCmuxAgentCommand(ticketKey: string, cmuxBinary = resolveCmuxBinary()): string {
   const key = cmuxWorkspaceName(ticketKey)
   return `${shellPreviewQuote(cmuxBinary)} rename-workspace ${shellPreviewQuote(key)} && agent-queue run ${shellPreviewQuote(key)}`

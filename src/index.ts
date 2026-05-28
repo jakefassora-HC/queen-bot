@@ -11,7 +11,7 @@ import { getModel } from './models.js'
 import { runDraftCommand } from './draft-command.js'
 import { getJiraConfig } from './config.js'
 import { formatQueue, formatTicketDetails, resolveTicketSelection } from './queue-command.js'
-import { formatCmuxCommand, openCmuxTicketWorkspace } from './cmux.js'
+import { canStartCmuxFromEnv, cmuxStartHelp, formatCmuxCommand, openCmuxTicketWorkspace } from './cmux.js'
 import type { JiraTicket } from './types.js'
 
 function prompt(q: string): Promise<string> {
@@ -178,6 +178,12 @@ export async function main(): Promise<void> {
     if (!start) {
       console.log('Preview only. Add --start after Jake approves opening these cmux workspaces.\n')
       selectedTickets.forEach(ticket => console.log(formatCmuxCommand(process.cwd(), ticket.key)))
+      return
+    }
+
+    if (!canStartCmuxFromEnv()) {
+      console.error(cmuxStartHelp())
+      process.exitCode = 1
       return
     }
 
