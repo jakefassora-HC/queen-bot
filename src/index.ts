@@ -20,8 +20,10 @@ function prompt(q: string): Promise<string> {
 function renderQueue(tickets: JiraTicket[]): void {
   console.log('\n  agent-queue\n  ' + '─'.repeat(50))
   tickets.forEach((t, i) => {
-    const size = t.size.padEnd(6)
-    console.log(`  ${i + 1}. ${t.key}  ${size}  ${t.summary}`)
+    const parent = t.parent ? `  parent: ${t.parent.key} ${t.parent.summary}` : '  parent: none'
+    const points = t.storyPoints === null ? 'points: none' : `points: ${t.storyPoints}`
+    console.log(`  ${i + 1}. ${t.key}  ${t.issueType || 'Issue'}  ${t.status}  ${points}  ${t.summary}`)
+    console.log(`     ${parent}`)
   })
   console.log('  ' + '─'.repeat(50))
 }

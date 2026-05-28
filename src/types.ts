@@ -3,7 +3,12 @@ export interface JiraTicket {
   key: string
   summary: string
   description: string
-  size: 'small' | 'medium' | 'large'
+  storyPoints: number | null
+  issueType: string
+  parent?: {
+    key: string
+    summary: string
+  }
   labels: string[]
   status: string
   repo?: string  // parsed from label "repo:owner/name"

@@ -13,6 +13,8 @@ const rawIssue = {
     summary: 'Add rate limiting',
     description: { content: [{ content: [{ text: 'Rate limit the /api/ask endpoint.' }] }] },
     status: { name: 'To Do' },
+    issuetype: { name: 'Story' },
+    parent: { key: 'TOOL-1', fields: { summary: 'Parent epic' } },
     labels: ['ai-candidate'],
     story_points: 3,
     customfield_10016: 3
@@ -25,12 +27,14 @@ test('parseTicket maps Jira API response to JiraTicket', () => {
   expect(ticket.summary).toBe('Add rate limiting')
   expect(ticket.labels).toContain('ai-candidate')
   expect(ticket.status).toBe('To Do')
+  expect(ticket.issueType).toBe('Story')
+  expect(ticket.parent?.key).toBe('TOOL-1')
+  expect(ticket.parent?.summary).toBe('Parent epic')
 })
 
-test('parseTicket sizes by story points', () => {
-  expect(parseTicket({ ...rawIssue, fields: { ...rawIssue.fields, customfield_10016: 1 } }).size).toBe('small')
-  expect(parseTicket({ ...rawIssue, fields: { ...rawIssue.fields, customfield_10016: 3 } }).size).toBe('medium')
-  expect(parseTicket({ ...rawIssue, fields: { ...rawIssue.fields, customfield_10016: 8 } }).size).toBe('large')
+test('parseTicket keeps story points nullable instead of inventing a size', () => {
+  expect(parseTicket({ ...rawIssue, fields: { ...rawIssue.fields, customfield_10016: 3 } }).storyPoints).toBe(3)
+  expect(parseTicket({ ...rawIssue, fields: { ...rawIssue.fields, customfield_10016: null } }).storyPoints).toBeNull()
 })
 
 test('buildQueueJql searches assigned non-done-category tickets without requiring a project', () => {
@@ -49,7 +53,7 @@ test('buildQueueSearchUrl explicitly requests fields needed by parseTicket', () 
   const url = buildQueueSearchUrl('https://example.atlassian.net', buildQueueJql('TOOL'), 20)
 
   expect(url).toContain('/rest/api/3/search/jql?')
-  expect(decodeURIComponent(url)).toContain('fields=summary,status,labels,description,assignee,project,customfield_10016')
+  expect(decodeURIComponent(url)).toContain('fields=summary,status,labels,description,assignee,project,issuetype,parent,customfield_10016,customfield_10014')
 })
 
 test('verifyJiraAuth throws a useful error on invalid credentials', async () => {

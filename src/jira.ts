@@ -17,13 +17,15 @@ const QUEUE_FIELDS = [
   'description',
   'assignee',
   'project',
-  'customfield_10016'
+  'issuetype',
+  'parent',
+  'customfield_10016',
+  'customfield_10014'
 ]
 
 export function parseTicket(issue: Record<string, unknown>): JiraTicket {
   const fields = issue.fields as Record<string, unknown>
-  const points = (fields.customfield_10016 as number) ?? 0
-  const size = points <= 2 ? 'small' : points <= 5 ? 'medium' : 'large'
+  const points = typeof fields.customfield_10016 === 'number' ? fields.customfield_10016 : null
 
   const descDoc = fields.description as { content?: Array<{ content?: Array<{ text?: string }> }> } | null
   const description = descDoc?.content
@@ -34,13 +36,21 @@ export function parseTicket(issue: Record<string, unknown>): JiraTicket {
   const labels = (fields.labels as string[]) ?? []
   const repoLabel = labels.find(l => l.startsWith('repo:'))
   const repo = repoLabel ? repoLabel.slice(5) : undefined
+  const issueType = ((fields.issuetype as Record<string, string> | undefined)?.name) ?? ''
+  const parentIssue = fields.parent as { key?: string; fields?: { summary?: string } } | undefined
+  const parent = parentIssue?.key ? {
+    key: parentIssue.key,
+    summary: parentIssue.fields?.summary ?? ''
+  } : undefined
 
   return {
     id: issue.id as string,
     key: issue.key as string,
     summary: (fields.summary as string) ?? '',
     description,
-    size,
+    storyPoints: points,
+    issueType,
+    parent,
     labels,
     status: ((fields.status as Record<string, string>)?.name) ?? '',
     repo

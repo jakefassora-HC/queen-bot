@@ -6,7 +6,8 @@ export function route(ticket: JiraTicket): Route {
     return { runtime: null, reason: 'high-risk — handle manually', approval: 'plan' }
   }
 
-  if (ticket.size === 'large' || ticket.labels.includes('big-ticket') || ticket.labels.includes('ui')) {
+  const isLarge = ticket.storyPoints !== null && ticket.storyPoints > 5
+  if (isLarge || ticket.labels.includes('big-ticket') || ticket.labels.includes('ui')) {
     return { runtime: 'claude-native', reason: 'large/UI ticket — native Claude Code with MCP', approval: 'design+plan' }
   }
 
