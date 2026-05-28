@@ -1,8 +1,22 @@
+export interface JiraAdfNode {
+  type: string
+  text?: string
+  attrs?: Record<string, string | number>
+  content?: JiraAdfNode[]
+}
+
+export interface JiraAdfDocument {
+  type: 'doc'
+  version: 1
+  content: JiraAdfNode[]
+}
+
 export interface JiraTicket {
   id: string
   key: string
   summary: string
   description: string
+  descriptionAdf?: JiraAdfDocument
   storyPoints: number | null
   issueType: string
   parent?: {
@@ -12,6 +26,51 @@ export interface JiraTicket {
   labels: string[]
   status: string
   repo?: string  // parsed from label "repo:owner/name"
+}
+
+export type ReadinessBand = 'ready' | 'needs-planning' | 'blocked'
+
+export interface TicketReadiness {
+  ticketKey: string
+  score: number
+  band: ReadinessBand
+  canExecute: boolean
+  strengths: string[]
+  missing: string[]
+  reason: string
+}
+
+export type AutonomyLevel = 0 | 1 | 2 | 3 | 4
+
+export interface JiraPlan {
+  ticketKey: string
+  goal: string
+  context: string[]
+  acceptanceCriteria: string[]
+  implementationNotes: string[]
+  verification: string[]
+  risks: string[]
+  autonomyLevel: AutonomyLevel
+  forbiddenActions: string[]
+}
+
+export interface ExecutionContract {
+  ticketKey: string
+  plan: JiraPlan
+  repo: string
+  branch: string
+  autonomyLevel: AutonomyLevel
+  approvedAt: string
+}
+
+export interface ProofReport {
+  ticketKey: string
+  branch: string
+  prUrl?: string
+  summary: string
+  filesChanged: string[]
+  verification: string[]
+  residualRisk: string[]
 }
 
 export interface ResearchSource {

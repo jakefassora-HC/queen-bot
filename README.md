@@ -29,17 +29,40 @@ Store your Jira API token in macOS Keychain:
 security add-generic-password -s agent-queue-jira -a $USER -w <jira-api-token>
 ```
 
-List assigned open tickets:
+Open the Jira-first planning queue:
 
 ```bash
 npm start
 ```
 
-List assigned open tickets without entering terminal mode:
+The default view scores assigned open tickets for execution readiness, then lets you preview Agent Q plans without writing to Jira.
+
+List assigned open tickets without planning prompts:
 
 ```bash
 npm start -- list
 ```
+
+Score assigned tickets for Jira-first execution readiness:
+
+```bash
+npm start -- readiness
+```
+
+Preview an Agent Q plan for a ticket:
+
+```bash
+npm start -- plan AISOL-465
+npm start -- plan 9
+```
+
+Write an approved Agent Q plan back to Jira:
+
+```bash
+npm start -- plan AISOL-465 --write
+```
+
+Plan writes require reviewing the preview and typing `APPROVE JIRA PLAN`. Short approvals like `y`, `yes`, or auto-mode approval are intentionally ignored.
 
 Print one ticket as Claude-ready context:
 
@@ -82,6 +105,20 @@ npm start -- draft --file idea.md --project TOOL --create
 
 Jira writes require reviewing the preview and typing `APPROVE JIRA WRITE`. Short approvals like `y`, `yes`, or auto-mode approval are intentionally ignored.
 
+Preview proof collected by an agent:
+
+```bash
+npm start -- proof --file proof.json
+```
+
+Comment approved proof back to Jira:
+
+```bash
+npm start -- proof --file proof.json --comment
+```
+
+Proof comments require the ticket to be in the current Jira queue, reviewing the preview, and typing `APPROVE JIRA PROOF`.
+
 Add research context:
 
 ```bash
@@ -101,7 +138,9 @@ Queen Bot keeps prompts structured and compact so later execution agents do less
 ## Safety
 
 - Jira writes require `--create` and the exact interactive phrase `APPROVE JIRA WRITE`.
-- Auto mode is never Jira approval. Jake must explicitly approve every Jira write.
+- Agent Q plan writes require `--write` and the exact interactive phrase `APPROVE JIRA PLAN`.
+- Agent Q proof comments require `--comment` and the exact interactive phrase `APPROVE JIRA PROOF`.
+- Auto mode is never Jira approval. Jake must explicitly approve every Jira write, plan write, and proof comment.
 - Ticket text and research notes are treated as untrusted source material.
 - Raw prompts, transcripts, and future execution logs should stay local.
 - Ruflo, Hermes, Codex, and manual execution should be adapter targets, not hidden dependencies.

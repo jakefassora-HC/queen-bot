@@ -1,4 +1,4 @@
-import type { JiraTicket } from './types.js'
+import type { JiraAdfDocument, JiraAdfNode, JiraTicket } from './types.js'
 import type { TicketDraft } from './types.js'
 import type { JiraConfig } from './config.js'
 import { getJiraKey, requireJiraConfig } from './config.js'
@@ -27,11 +27,8 @@ export function parseTicket(issue: Record<string, unknown>): JiraTicket {
   const fields = issue.fields as Record<string, unknown>
   const points = typeof fields.customfield_10016 === 'number' ? fields.customfield_10016 : null
 
-  const descDoc = fields.description as { content?: Array<{ content?: Array<{ text?: string }> }> } | null
-  const description = descDoc?.content
-    ?.flatMap(b => b.content ?? [])
-    .map(n => n.text ?? '')
-    .join(' ') ?? ''
+  const descriptionAdf = fields.description as JiraAdfDocument | undefined
+  const description = adfToPlainText(descriptionAdf)
 
   const labels = (fields.labels as string[]) ?? []
   const repoLabel = labels.find(l => l.startsWith('repo:'))
@@ -48,6 +45,7 @@ export function parseTicket(issue: Record<string, unknown>): JiraTicket {
     key: issue.key as string,
     summary: (fields.summary as string) ?? '',
     description,
+    descriptionAdf,
     storyPoints: points,
     issueType,
     parent,
@@ -98,13 +96,6 @@ export async function verifyJiraAuth(
   )
 }
 
-type AdfNode = {
-  type: string
-  text?: string
-  attrs?: Record<string, string>
-  content?: AdfNode[]
-}
-
 type CreateIssuePayload = {
   fields: {
     project: { key: string }
@@ -114,20 +105,20 @@ type CreateIssuePayload = {
     description: {
       type: 'doc'
       version: 1
-      content: AdfNode[]
+      content: JiraAdfNode[]
     }
   }
 }
 
-function paragraph(text: string): AdfNode {
+function paragraph(text: string): JiraAdfNode {
   return { type: 'paragraph', content: [{ type: 'text', text }] }
 }
 
-function heading(text: string): AdfNode {
+function heading(text: string): JiraAdfNode {
   return { type: 'heading', attrs: { level: '2' }, content: [{ type: 'text', text }] }
 }
 
-function bulletList(items: string[]): AdfNode {
+function bulletList(items: string[]): JiraAdfNode {
   const safeItems = items.length === 0 ? ['None'] : items
   return {
     type: 'bulletList',
@@ -140,6 +131,84 @@ function bulletList(items: string[]): AdfNode {
 
 function uniqueLabels(labels: string[]): string[] {
   return Array.from(new Set(['agent-draft', ...labels])).filter(Boolean)
+}
+
+function textNode(text: string): JiraAdfNode {
+  return { type: 'text', text }
+}
+
+function collectInlineText(node: JiraAdfNode): string {
+  if (node.text) return node.text
+  return (node.content ?? []).map(collectInlineText).join('')
+}
+
+function adfBlockToPlainText(node: JiraAdfNode): string[] {
+  if (node.type === 'heading') {
+    const level = Number(node.attrs?.level ?? 2)
+    return [`${'#'.repeat(Math.max(1, Math.min(level, 6)))} ${collectInlineText(node)}`]
+  }
+
+  if (node.type === 'paragraph') {
+    return [collectInlineText(node)]
+  }
+
+  if (node.type === 'listItem') {
+    const text = (node.content ?? []).flatMap(adfBlockToPlainText).join(' ').trim()
+    return text ? [`- ${text.replace(/^- /, '')}`] : []
+  }
+
+  if (node.type === 'bulletList' || node.type === 'orderedList') {
+    return (node.content ?? []).flatMap(adfBlockToPlainText)
+  }
+
+  return (node.content ?? []).flatMap(adfBlockToPlainText)
+}
+
+export function adfToPlainText(doc: JiraAdfDocument | null | undefined): string {
+  if (!doc?.content) return ''
+  return doc.content.flatMap(adfBlockToPlainText).filter(Boolean).join('\n')
+}
+
+function textBlockToAdf(block: string): JiraAdfNode {
+  if (block.startsWith('### ')) {
+    return { type: 'heading', attrs: { level: 3 }, content: [textNode(block.slice(4))] }
+  }
+
+  if (block.startsWith('## ')) {
+    return { type: 'heading', attrs: { level: 2 }, content: [textNode(block.slice(3))] }
+  }
+
+  if (block.split('\n').every(line => line.startsWith('- '))) {
+    return bulletList(block.split('\n').map(line => line.slice(2).trim()))
+  }
+
+  return paragraph(block)
+}
+
+function plainTextToAdfBlocks(text: string): JiraAdfNode[] {
+  return text.split(/\n{2,}/).map(block => block.trim()).filter(Boolean).map(textBlockToAdf)
+}
+
+export function appendTextToDescriptionAdf(
+  description: JiraAdfDocument | null | undefined,
+  text: string
+): JiraAdfDocument {
+  return {
+    type: 'doc',
+    version: 1,
+    content: [
+      ...(description?.content ?? []),
+      ...plainTextToAdfBlocks(text)
+    ]
+  }
+}
+
+export function buildUpdateDescriptionPayload(description: JiraAdfDocument): { fields: { description: JiraAdfDocument } } {
+  return {
+    fields: {
+      description
+    }
+  }
 }
 
 export function buildCreateIssuePayload(projectKey: string, draft: TicketDraft): CreateIssuePayload {
@@ -191,6 +260,20 @@ export async function createIssueFromDraft(projectKey: string, draft: TicketDraf
   return data.key
 }
 
+export async function updateTicketDescription(ticketKey: string, description: JiraAdfDocument): Promise<void> {
+  const config = requireJiraConfig()
+  const res = await fetch(`${config.baseUrl}/rest/api/3/issue/${ticketKey}`, {
+    method: 'PUT',
+    headers: {
+      Authorization: authHeader(config.email),
+      Accept: 'application/json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(buildUpdateDescriptionPayload(description))
+  })
+  if (!res.ok) throw new Error(`Jira update issue error ${res.status}: ${await res.text()}`)
+}
+
 export async function transitionTicket(ticketKey: string, statusName: 'In Progress' | 'Done'): Promise<void> {
   const config = requireJiraConfig()
   const transUrl = `${config.baseUrl}/rest/api/3/issue/${ticketKey}/transitions`
@@ -207,9 +290,10 @@ export async function transitionTicket(ticketKey: string, statusName: 'In Progre
 
 export async function commentOnTicket(ticketKey: string, text: string): Promise<void> {
   const config = requireJiraConfig()
-  await fetch(`${config.baseUrl}/rest/api/3/issue/${ticketKey}/comment`, {
+  const res = await fetch(`${config.baseUrl}/rest/api/3/issue/${ticketKey}/comment`, {
     method: 'POST',
     headers: { Authorization: authHeader(config.email), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ body: { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] } })
+    body: JSON.stringify({ body: { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [textNode(text)] }] } })
   })
+  if (!res.ok) throw new Error(`Jira comment error ${res.status}: ${await res.text()}`)
 }
