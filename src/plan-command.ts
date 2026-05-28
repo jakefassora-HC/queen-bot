@@ -1,8 +1,8 @@
 import readline from 'readline'
 import { renderJiraPlan } from './jira-plan.js'
-import { appendTextToDescriptionAdf, updateTicketDescription } from './jira.js'
+import { updateTicketDescription, upsertTextToDescriptionAdf } from './jira.js'
 import { resolveTicketSelection } from './queue-command.js'
-import type { JiraPlan, JiraTicket } from './types.js'
+import type { JiraAdfDocument, JiraPlan, JiraTicket } from './types.js'
 
 export interface PlanArgs {
   selection: string
@@ -40,16 +40,17 @@ export function buildPlanFromTicket(ticket: JiraTicket): JiraPlan {
   }
 }
 
+export function buildPlanDescriptionAdf(ticket: JiraTicket, plan: JiraPlan): JiraAdfDocument {
+  return upsertTextToDescriptionAdf(ticket.descriptionAdf, renderJiraPlan(plan), 'Agent Q Plan')
+}
+
 export async function writePlanWithApproval(ticket: JiraTicket, plan: JiraPlan): Promise<boolean> {
   const rendered = renderJiraPlan(plan)
   console.log(rendered)
   const answer = await prompt(`\nWrite this plan to ${ticket.key}? Type "${JIRA_PLAN_APPROVAL_PHRASE}" to approve: `)
   if (!hasJiraPlanApproval(answer)) return false
 
-  await updateTicketDescription(
-    ticket.key,
-    appendTextToDescriptionAdf(ticket.descriptionAdf, rendered)
-  )
+  await updateTicketDescription(ticket.key, buildPlanDescriptionAdf(ticket, plan))
   return true
 }
 

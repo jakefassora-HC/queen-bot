@@ -26,6 +26,8 @@ cd ~/projects/agent-queue && agent-queue show <ticket-number-or-key>
 
 Use the ticket as the source of truth. If it lacks enough context, help Jake create an Agent Q plan first. Preview plans locally, then use `agent-queue plan <ticket> --write` only when Jake explicitly wants to write it and is ready to type `APPROVE JIRA PLAN`.
 
+Plan writes must update the Jira description through `agent-queue plan <ticket> --write`. Do not use the Atlassian MCP, Jira MCP, or any direct Jira comment API to write Agent Q plans. Jira comments are only for proof, progress, or follow-up notes after a separate approved proof write.
+
 For approved parallel execution, preview the Jira-backed execution contract first:
 
 ```bash

@@ -7,6 +7,7 @@ import {
   buildUpdateDescriptionPayload,
   parseTicket,
   parseRepoLabel,
+  upsertTextToDescriptionAdf,
   verifyJiraAuth
 } from '../jira.js'
 
@@ -217,6 +218,32 @@ test('appendTextToDescriptionAdf preserves existing ADF nodes when adding Agent 
   })
   expect(adfToPlainText(description)).toContain('## Agent Q Plan')
   expect(adfToPlainText(description)).toContain('Ticket: AISOL-465')
+})
+
+test('upsertTextToDescriptionAdf replaces an existing Agent Q plan in the description', () => {
+  const existing = appendTextToDescriptionAdf({
+    type: 'doc',
+    version: 1,
+    content: [{
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'Existing rich context' }]
+    }]
+  }, '## Agent Q Plan\n\nTicket: AISOL-465\n\n### Goal\nOld goal')
+
+  const updated = upsertTextToDescriptionAdf(
+    existing,
+    '## Agent Q Plan\n\nTicket: AISOL-465\n\n### Goal\nNew goal',
+    'Agent Q Plan'
+  )
+  const text = adfToPlainText(updated)
+
+  expect(updated.content[0]).toEqual({
+    type: 'paragraph',
+    content: [{ type: 'text', text: 'Existing rich context' }]
+  })
+  expect(text.match(/## Agent Q Plan/g)).toHaveLength(1)
+  expect(text).toContain('New goal')
+  expect(text).not.toContain('Old goal')
 })
 
 test('buildUpdateDescriptionPayload creates Jira ADF update body', () => {

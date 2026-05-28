@@ -399,6 +399,47 @@ export function appendTextToDescriptionAdf(
   }
 }
 
+function isHeadingNode(node: JiraAdfNode, headingText: string): boolean {
+  return node.type === 'heading' && collectInlineText(node).trim() === headingText
+}
+
+export function upsertTextToDescriptionAdf(
+  description: JiraAdfDocument | null | undefined,
+  text: string,
+  headingText: string
+): JiraAdfDocument {
+  const content = description?.content ?? []
+  const replacement = plainTextToAdfBlocks(text)
+  const start = content.findIndex(node => isHeadingNode(node, headingText))
+
+  if (start === -1) {
+    return {
+      type: 'doc',
+      version: 1,
+      content: [...content, ...replacement]
+    }
+  }
+
+  const headingLevel = Number(content[start].attrs?.level ?? 2)
+  let end = start + 1
+  while (end < content.length) {
+    const node = content[end]
+    const nodeLevel = Number(node.attrs?.level ?? 2)
+    if (node.type === 'heading' && nodeLevel <= headingLevel) break
+    end += 1
+  }
+
+  return {
+    type: 'doc',
+    version: 1,
+    content: [
+      ...content.slice(0, start),
+      ...replacement,
+      ...content.slice(end)
+    ]
+  }
+}
+
 export function buildUpdateDescriptionPayload(description: JiraAdfDocument): { fields: { description: JiraAdfDocument } } {
   return {
     fields: {

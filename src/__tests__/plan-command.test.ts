@@ -1,9 +1,11 @@
 import {
   JIRA_PLAN_APPROVAL_PHRASE,
+  buildPlanDescriptionAdf,
   buildPlanFromTicket,
   hasJiraPlanApproval,
   parsePlanArgs
 } from '../plan-command.js'
+import { adfToPlainText, appendTextToDescriptionAdf } from '../jira.js'
 import type { JiraTicket } from '../types.js'
 
 const ticket: JiraTicket = {
@@ -38,4 +40,25 @@ test('buildPlanFromTicket creates a bounded Agent Q plan draft', () => {
   expect(plan.context).toContain('Current docs are scattered.')
   expect(plan.autonomyLevel).toBe(2)
   expect(plan.forbiddenActions).toContain('Do not update Jira without approval.')
+})
+
+test('buildPlanDescriptionAdf writes the approved Agent Q plan into the description', () => {
+  const plan = buildPlanFromTicket(ticket)
+  const descriptionAdf = appendTextToDescriptionAdf(ticket.descriptionAdf, [
+    ticket.description,
+    '',
+    '## Agent Q Plan',
+    '',
+    'Ticket: AISOL-465',
+    '',
+    '### Goal',
+    'Old goal'
+  ].join('\n'))
+
+  const description = buildPlanDescriptionAdf({ ...ticket, descriptionAdf }, plan)
+  const text = adfToPlainText(description)
+
+  expect(text.match(/## Agent Q Plan/g)).toHaveLength(1)
+  expect(text).toContain('Handoff Documentation or Onboarding?')
+  expect(text).not.toContain('Old goal')
 })
