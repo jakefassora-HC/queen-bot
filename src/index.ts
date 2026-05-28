@@ -8,6 +8,7 @@ import { spawnNative } from './spawn-native.js'
 import { commitAndPush, openDraftPr } from './pr.js'
 import { writeRun, updateRun, activeRuns } from './state.js'
 import { getModel } from './models.js'
+import { runDraftCommand } from './draft-command.js'
 import type { JiraTicket } from './types.js'
 
 function prompt(q: string): Promise<string> {
@@ -87,6 +88,11 @@ async function runTicket(ticket: JiraTicket): Promise<void> {
 
 export async function main(): Promise<void> {
   const args = process.argv.slice(2)
+
+  if (args[0] === 'draft') {
+    await runDraftCommand(args.slice(1))
+    return
+  }
 
   if (args[0] === 'status') {
     const runs = await activeRuns()

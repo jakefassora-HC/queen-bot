@@ -1,4 +1,4 @@
-import { parseTicket } from '../jira.js'
+import { buildCreateIssuePayload, parseTicket } from '../jira.js'
 
 const rawIssue = {
   id: '10001',
@@ -25,4 +25,27 @@ test('parseTicket sizes by story points', () => {
   expect(parseTicket({ ...rawIssue, fields: { ...rawIssue.fields, customfield_10016: 1 } }).size).toBe('small')
   expect(parseTicket({ ...rawIssue, fields: { ...rawIssue.fields, customfield_10016: 3 } }).size).toBe('medium')
   expect(parseTicket({ ...rawIssue, fields: { ...rawIssue.fields, customfield_10016: 8 } }).size).toBe('large')
+})
+
+test('buildCreateIssuePayload turns a draft into Jira ADF fields', () => {
+  const payload = buildCreateIssuePayload('TOOL', {
+    summary: 'Draft Jira tickets from planning discussions',
+    issueType: 'Task',
+    problem: 'Ideas are not consistently captured in Jira.',
+    goal: 'Turn discussion into Jira-ready tickets.',
+    nonGoals: ['Execute agent swarms'],
+    acceptanceCriteria: ['Shows 1-N drafts', 'Requires approval before Jira write'],
+    researchNotes: ['Ruflo is adapter inspiration'],
+    risks: ['Prompt injection from ticket text'],
+    definitionOfDone: ['Approved tickets are created in Jira'],
+    labels: ['agent-spec'],
+    relatedRepos: ['jakefassora-HC/queen-bot']
+  })
+
+  expect(payload.fields.project.key).toBe('TOOL')
+  expect(payload.fields.summary).toBe('Draft Jira tickets from planning discussions')
+  expect(payload.fields.labels).toContain('agent-spec')
+  expect(payload.fields.labels).toContain('agent-draft')
+  expect(payload.fields.description.type).toBe('doc')
+  expect(JSON.stringify(payload.fields.description)).toContain('Acceptance Criteria')
 })

@@ -1,4 +1,5 @@
 import type { JiraTicket } from './types.js'
+import type { TicketDraft } from './types.js'
 import { getJiraKey, JIRA_BASE_URL, JIRA_EMAIL, JIRA_PROJECT } from './config.js'
 
 function authHeader(): string {
@@ -42,6 +43,98 @@ export async function fetchQueue(): Promise<JiraTicket[]> {
   if (!res.ok) throw new Error(`Jira error ${res.status}: ${await res.text()}`)
   const data = await res.json() as { issues: unknown[] }
   return data.issues.map(i => parseTicket(i as Record<string, unknown>))
+}
+
+type AdfNode = {
+  type: string
+  text?: string
+  attrs?: Record<string, string>
+  content?: AdfNode[]
+}
+
+type CreateIssuePayload = {
+  fields: {
+    project: { key: string }
+    summary: string
+    issuetype: { name: string }
+    labels: string[]
+    description: {
+      type: 'doc'
+      version: 1
+      content: AdfNode[]
+    }
+  }
+}
+
+function paragraph(text: string): AdfNode {
+  return { type: 'paragraph', content: [{ type: 'text', text }] }
+}
+
+function heading(text: string): AdfNode {
+  return { type: 'heading', attrs: { level: '2' }, content: [{ type: 'text', text }] }
+}
+
+function bulletList(items: string[]): AdfNode {
+  const safeItems = items.length === 0 ? ['None'] : items
+  return {
+    type: 'bulletList',
+    content: safeItems.map(item => ({
+      type: 'listItem',
+      content: [paragraph(item)]
+    }))
+  }
+}
+
+function uniqueLabels(labels: string[]): string[] {
+  return Array.from(new Set(['agent-draft', ...labels])).filter(Boolean)
+}
+
+export function buildCreateIssuePayload(projectKey: string, draft: TicketDraft): CreateIssuePayload {
+  return {
+    fields: {
+      project: { key: projectKey },
+      summary: draft.summary,
+      issuetype: { name: draft.issueType },
+      labels: uniqueLabels(draft.labels),
+      description: {
+        type: 'doc',
+        version: 1,
+        content: [
+          heading('Problem'),
+          paragraph(draft.problem),
+          heading('Goal'),
+          paragraph(draft.goal),
+          heading('Non-goals'),
+          bulletList(draft.nonGoals),
+          heading('Acceptance Criteria'),
+          bulletList(draft.acceptanceCriteria),
+          heading('Research Notes'),
+          bulletList(draft.researchNotes),
+          heading('Risks'),
+          bulletList(draft.risks),
+          heading('Definition of Done'),
+          bulletList(draft.definitionOfDone),
+          heading('Related Repos'),
+          bulletList(draft.relatedRepos)
+        ]
+      }
+    }
+  }
+}
+
+export async function createIssueFromDraft(projectKey: string, draft: TicketDraft): Promise<string> {
+  const res = await fetch(`${JIRA_BASE_URL}/rest/api/3/issue`, {
+    method: 'POST',
+    headers: {
+      Authorization: authHeader(),
+      Accept: 'application/json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(buildCreateIssuePayload(projectKey, draft))
+  })
+  if (!res.ok) throw new Error(`Jira create issue error ${res.status}: ${await res.text()}`)
+  const data = await res.json() as { key: string }
+  return data.key
 }
 
 export async function transitionTicket(ticketKey: string, statusName: 'In Progress' | 'Done'): Promise<void> {
