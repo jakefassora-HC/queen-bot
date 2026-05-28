@@ -136,7 +136,7 @@ export async function main(): Promise<void> {
   }
 
   if (args[0] === 'dashboard') {
-    console.log(formatQueenDashboard(tickets))
+    console.log(formatQueenDashboard(tickets, args.includes('--all') ? tickets.length : undefined))
     return
   }
 

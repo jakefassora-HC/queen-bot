@@ -11,6 +11,8 @@ Render the output back to Jake in the chat as an expanded dashboard:
 - Start with `Queen Bot planning dashboard`.
 - Use Markdown checkboxes for tickets.
 - Keep the dashboard readable: ticket key, readiness percent, status, parent/epic, summary, and next action.
+- Preserve the grouped-by-epic sections from the CLI output.
+- Never convert the dashboard to a Markdown table or box-drawing table; tables wrap badly and waste tokens.
 - Do not paste a giant raw terminal wall unless Jake asks for raw output.
 - Ask: "Which boxes should Queen Bot open up?"
 
