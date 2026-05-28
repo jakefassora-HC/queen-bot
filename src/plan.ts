@@ -1,15 +1,24 @@
 import { spawn } from 'child_process'
+import type { SpawnOptions } from 'child_process'
 import type { JiraTicket, Plan } from './types.js'
+
+export function buildClaudeArgs(prompt: string): string[] {
+  return ['--bare', '-p', prompt, '--output-format', 'text']
+}
+
+export function buildClaudeSpawnOptions(): SpawnOptions {
+  return {
+    shell: false,
+    stdio: ['ignore', 'pipe', 'pipe']
+  }
+}
 
 // Uses existing Claude Code CLI auth — no separate API key needed
 export function runClaude(prompt: string): Promise<string> {
   return new Promise((resolve, reject) => {
     let output = ''
     let errorOutput = ''
-    const proc = spawn('claude', ['--bare', '-p', prompt, '--output-format', 'text'], {
-      shell: false,
-      stdio: ['pipe', 'pipe', 'pipe']
-    })
+    const proc = spawn('claude', buildClaudeArgs(prompt), buildClaudeSpawnOptions())
     proc.stdout?.on('data', (d: Buffer) => { output += d.toString() })
     proc.stderr?.on('data', (d: Buffer) => { errorOutput += d.toString() })
     proc.on('exit', code => code === 0
