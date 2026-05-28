@@ -43,3 +43,22 @@ test('formatQueenDashboard renders a human-friendly checkbox dashboard', () => {
   expect(output).not.toContain('┌')
   expect(output).toContain('Reply with a number/key')
 })
+
+test('formatQueenDashboard shows every ticket by default', () => {
+  const tickets: JiraTicket[] = Array.from({ length: 9 }, (_, index) => ({
+    id: String(index + 1),
+    key: `AISOL-${index + 1}`,
+    summary: `Ticket ${index + 1}`,
+    description: '',
+    storyPoints: null,
+    issueType: 'Story',
+    labels: [],
+    status: 'To Do',
+    parent: { key: 'AISOL-97', summary: 'Roadwarrior' }
+  }))
+
+  const output = formatQueenDashboard(tickets)
+
+  expect(output).toContain('- [ ] 9. AISOL-9')
+  expect(output).not.toContain('hidden')
+})
