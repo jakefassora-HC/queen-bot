@@ -12,6 +12,8 @@ Render the result back to Jake as a readable dashboard in the chat, not as a com
 
 - Use Markdown checkboxes for each ticket: `- [ ] 1. AISOL-123 - 60% needs-planning`.
 - Keep each ticket to summary, status, parent/epic, readiness reason, and next action.
+- Preserve grouped-by-epic sections.
+- Never convert the dashboard to a Markdown table or box-drawing table; tables wrap badly and waste tokens.
 - Ask: "Which boxes should Queen Bot open up?"
 - If Jake gives numbers or keys, fetch each selected ticket with `agent-queue show <ticket-number-or-key>` and continue the planning conversation.
 

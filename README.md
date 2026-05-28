@@ -35,12 +35,13 @@ Open the Jira-first planning queue:
 npm start
 ```
 
-The default view opens the Queen Bot planning dashboard with checkbox-style rows, readiness scores, parent context, and plan-next hints.
+The default view opens the Queen Bot planning dashboard with grouped-by-epic checkbox rows, readiness scores, parent context, and plan-next hints. It intentionally avoids tables so Claude does not compress the queue into a hard-to-read block.
 
 Print the dashboard without entering terminal mode:
 
 ```bash
 npm start -- dashboard
+npm start -- dashboard --all
 ```
 
 List assigned open tickets without planning prompts:

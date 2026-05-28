@@ -37,7 +37,9 @@ test('formatQueenDashboard renders a human-friendly checkbox dashboard', () => {
   const output = formatQueenDashboard(tickets)
 
   expect(output).toContain('# Queen Bot')
+  expect(output).toContain('Roadwarrior: 1')
+  expect(output).toContain('## Roadwarrior (1 shown, 0 ready)')
   expect(output).toContain('- [ ] 1. AISOL-465')
-  expect(output).toContain('Parent: AISOL-97 Roadwarrior')
+  expect(output).not.toContain('┌')
   expect(output).toContain('Reply with a number/key')
 })
