@@ -1,4 +1,10 @@
-import { buildCreateIssuePayload, buildQueueJql, parseTicket, verifyJiraAuth } from '../jira.js'
+import {
+  buildCreateIssuePayload,
+  buildQueueJql,
+  buildQueueSearchUrl,
+  parseTicket,
+  verifyJiraAuth
+} from '../jira.js'
 
 const rawIssue = {
   id: '10001',
@@ -37,6 +43,13 @@ test('buildQueueJql can narrow to a configured project', () => {
   expect(buildQueueJql('TOOL')).toBe(
     'project = TOOL AND assignee = currentUser() AND statusCategory != Done ORDER BY priority DESC'
   )
+})
+
+test('buildQueueSearchUrl explicitly requests fields needed by parseTicket', () => {
+  const url = buildQueueSearchUrl('https://example.atlassian.net', buildQueueJql('TOOL'), 20)
+
+  expect(url).toContain('/rest/api/3/search/jql?')
+  expect(decodeURIComponent(url)).toContain('fields=summary,status,labels,description,assignee,project,customfield_10016')
 })
 
 test('verifyJiraAuth throws a useful error on invalid credentials', async () => {

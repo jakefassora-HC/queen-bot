@@ -10,6 +10,16 @@ function authHeader(email: string): string {
 
 type Fetcher = typeof fetch
 
+const QUEUE_FIELDS = [
+  'summary',
+  'status',
+  'labels',
+  'description',
+  'assignee',
+  'project',
+  'customfield_10016'
+]
+
 export function parseTicket(issue: Record<string, unknown>): JiraTicket {
   const fields = issue.fields as Record<string, unknown>
   const points = (fields.customfield_10016 as number) ?? 0
@@ -41,8 +51,7 @@ export async function fetchQueue(): Promise<JiraTicket[]> {
   const config = requireJiraConfig()
   const auth = authHeader(config.email)
   await verifyJiraAuth(config, auth)
-  const jql = encodeURIComponent(buildQueueJql(config.project))
-  const url = `${config.baseUrl}/rest/api/3/search/jql?jql=${jql}&maxResults=20`
+  const url = buildQueueSearchUrl(config.baseUrl, buildQueueJql(config.project), 20)
   const res = await fetch(url, { headers: { Authorization: auth, Accept: 'application/json' } })
   if (!res.ok) throw new Error(`Jira error ${res.status}: ${await res.text()}`)
   const data = await res.json() as { issues: unknown[] }
@@ -52,6 +61,15 @@ export async function fetchQueue(): Promise<JiraTicket[]> {
 export function buildQueueJql(project?: string): string {
   const scope = project ? `project = ${project} AND ` : ''
   return `${scope}assignee = currentUser() AND statusCategory != Done ORDER BY priority DESC`
+}
+
+export function buildQueueSearchUrl(baseUrl: string, jql: string, maxResults: number): string {
+  const params = new URLSearchParams({
+    jql,
+    maxResults: String(maxResults),
+    fields: QUEUE_FIELDS.join(',')
+  })
+  return `${baseUrl}/rest/api/3/search/jql?${params.toString()}`
 }
 
 export async function verifyJiraAuth(
