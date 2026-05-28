@@ -12,7 +12,7 @@ import { runDraftCommand } from './draft-command.js'
 import { getJiraConfig } from './config.js'
 import { formatQueue, formatTicketDetails, resolveTicketSelection } from './queue-command.js'
 import { canStartCmuxFromEnv, cmuxStartHelp, formatCmuxCommand, openCmuxTicketWorkspace } from './cmux.js'
-import { formatReadinessQueue } from './readiness-command.js'
+import { formatQueenDashboard, formatReadinessQueue } from './readiness-command.js'
 import { runPlanCommand } from './plan-command.js'
 import { runProofCommand } from './proof.js'
 import type { JiraTicket } from './types.js'
@@ -135,6 +135,11 @@ export async function main(): Promise<void> {
     return
   }
 
+  if (args[0] === 'dashboard') {
+    console.log(formatQueenDashboard(tickets))
+    return
+  }
+
   if (args[0] === 'plan') {
     await runPlanCommand(args.slice(1), tickets)
     return
@@ -212,7 +217,7 @@ export async function main(): Promise<void> {
     return
   }
 
-  console.log(formatReadinessQueue(tickets))
+  console.log(formatQueenDashboard(tickets))
   const input = await prompt('\n  Pick tickets to preview Agent Q plans (Enter to skip): ')
   if (!input) return
 

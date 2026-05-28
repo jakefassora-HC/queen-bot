@@ -35,7 +35,13 @@ Open the Jira-first planning queue:
 npm start
 ```
 
-The default view scores assigned open tickets for execution readiness, then lets you preview Agent Q plans without writing to Jira.
+The default view opens the Queen Bot planning dashboard with checkbox-style rows, readiness scores, parent context, and plan-next hints.
+
+Print the dashboard without entering terminal mode:
+
+```bash
+npm start -- dashboard
+```
 
 List assigned open tickets without planning prompts:
 
