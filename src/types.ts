@@ -25,6 +25,10 @@ export interface JiraTicket {
   }
   labels: string[]
   status: string
+  sprint?: {
+    name: string
+    state?: string
+  }
   repo?: string  // parsed from label "repo:owner/name"
 }
 
@@ -59,6 +63,7 @@ export interface ExecutionContract {
   plan: JiraPlan
   repo: string
   branch: string
+  worktreePath: string
   autonomyLevel: AutonomyLevel
   approvedAt: string
 }

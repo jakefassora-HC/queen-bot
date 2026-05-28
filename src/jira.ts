@@ -20,8 +20,41 @@ const QUEUE_FIELDS = [
   'issuetype',
   'parent',
   'customfield_10016',
-  'customfield_10014'
+  'customfield_10014',
+  'customfield_10020'
 ]
+
+type JiraSprintField = {
+  name?: string
+  state?: string
+} | string
+
+function parseSprintField(value: unknown): JiraTicket['sprint'] {
+  const sprint = Array.isArray(value) ? value[value.length - 1] as JiraSprintField | undefined : value as JiraSprintField | undefined
+  if (!sprint) return undefined
+
+  if (typeof sprint === 'string') {
+    const name = sprint.match(/name=([^,\]]+)/)?.[1]
+    const state = sprint.match(/state=([^,\]]+)/)?.[1]
+    return name ? { name, state } : undefined
+  }
+
+  if (typeof sprint === 'object' && sprint.name) {
+    return { name: sprint.name, state: sprint.state }
+  }
+
+  return undefined
+}
+
+export function parseRepoLabel(labels: string[]): string | undefined {
+  const repoLabel = labels.find(l => l.startsWith('repo:'))
+  const repo = repoLabel ? repoLabel.slice(5) : undefined
+  if (!repo) return undefined
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)) return undefined
+  const [owner, name] = repo.split('/')
+  if (!owner || !name || owner.startsWith('.') || name.startsWith('.') || repo.includes('..')) return undefined
+  return repo
+}
 
 export function parseTicket(issue: Record<string, unknown>): JiraTicket {
   const fields = issue.fields as Record<string, unknown>
@@ -31,14 +64,14 @@ export function parseTicket(issue: Record<string, unknown>): JiraTicket {
   const description = adfToPlainText(descriptionAdf)
 
   const labels = (fields.labels as string[]) ?? []
-  const repoLabel = labels.find(l => l.startsWith('repo:'))
-  const repo = repoLabel ? repoLabel.slice(5) : undefined
+  const repo = parseRepoLabel(labels)
   const issueType = ((fields.issuetype as Record<string, string> | undefined)?.name) ?? ''
   const parentIssue = fields.parent as { key?: string; fields?: { summary?: string } } | undefined
   const parent = parentIssue?.key ? {
     key: parentIssue.key,
     summary: parentIssue.fields?.summary ?? ''
   } : undefined
+  const sprint = parseSprintField(fields.customfield_10020)
 
   return {
     id: issue.id as string,
@@ -51,6 +84,7 @@ export function parseTicket(issue: Record<string, unknown>): JiraTicket {
     parent,
     labels,
     status: ((fields.status as Record<string, string>)?.name) ?? '',
+    sprint,
     repo
   }
 }
