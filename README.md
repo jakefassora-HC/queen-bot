@@ -62,7 +62,7 @@ Open those cmux workspaces only after approval:
 npm start -- cmux AISOL-465 AISOL-540 --start
 ```
 
-Each cmux workspace is named by ticket key and opens an interactive Claude session with an Agent Q handoff prompt. Claude starts by reading `agent-queue show <ticket-key>` in that workspace, then plans from the current Claude session instead of spawning nested non-interactive Claude.
+Each cmux workspace is named by ticket key and opens an interactive Claude session with an Agent Q handoff prompt. Claude starts by reading `agent-queue show <ticket-key>` in that workspace, uses Superpowers as the planning/TDD/debugging/verification protocol, then dispatches parallel agents for independent work after Jake approves the plan and autonomy level.
 
 Run `--start` from a terminal inside cmux. By default cmux only allows processes started inside cmux to control workspaces; running `--start` from macOS Terminal or a Claude session outside cmux can fail with `Access denied` or `TabManager not available`.
 

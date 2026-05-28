@@ -1,6 +1,7 @@
 import {
   DEFAULT_CMUX_BINARY,
   buildCmuxAgentCommand,
+  buildClaudeHandoffPrompt,
   buildCmuxWorkspaceArgs,
   canStartCmuxFromEnv,
   cmuxWorkspaceName,
@@ -19,6 +20,15 @@ test('buildCmuxAgentCommand opens interactive Claude with the ticket handoff pro
   expect(command).toContain('claude --name AISOL-465')
   expect(command).toContain('agent-queue show AISOL-465')
   expect(command).not.toContain('agent-queue run AISOL-465')
+})
+
+test('buildClaudeHandoffPrompt tells workers to use Superpowers and parallel agents where safe', () => {
+  const prompt = buildClaudeHandoffPrompt('AISOL-465')
+
+  expect(prompt).toContain('Use Superpowers')
+  expect(prompt).toContain('dispatch parallel agents')
+  expect(prompt).toContain('independent')
+  expect(prompt).toContain('bounded autonomy')
 })
 
 test('buildCmuxWorkspaceArgs creates a workspace and starts Claude from inside cmux', () => {

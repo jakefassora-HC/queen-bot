@@ -43,6 +43,9 @@ export function buildClaudeHandoffPrompt(ticketKey: string): string {
     'If the ticket has no description, ask Jake what the ticket should mean and draft Jira-ready content first.',
     'Do not create, update, or transition Jira tickets without Jake explicitly approving the exact write.',
     'Do not run agent-queue run from inside this session; that would spawn another non-interactive Claude process.',
+    'Use Superpowers as the quality protocol: brainstorm/plan first, use TDD for changes, use systematic debugging for failures, and verify before claiming completion.',
+    'After Jake approves the plan and autonomy level, dispatch parallel agents for independent research, implementation, review, or verification domains whenever doing so is safe and useful.',
+    'Keep bounded autonomy: move fast inside the approved contract, but stop before forbidden writes, merges, deploys, or unclear scope changes.',
     'After you understand the ticket, propose the plan and wait for Jake before implementing.'
   ].join(' ')
 }
