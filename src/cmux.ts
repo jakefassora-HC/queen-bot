@@ -48,13 +48,15 @@ export function buildClaudeHandoffPrompt(ticketKey: string, contract?: Execution
     'Do not run agent-queue run from inside this session; that would spawn another non-interactive Claude process.',
     'Use Superpowers as the quality protocol: brainstorm/plan first, use TDD for changes, use systematic debugging for failures, and verify before claiming completion.',
     'After Jake approves the plan and autonomy level, dispatch parallel agents for independent research, implementation, review, or verification domains whenever doing so is safe and useful.',
-    'Keep bounded autonomy: move fast inside the approved contract, but stop before forbidden writes, merges, deploys, or unclear scope changes.',
-    'After you understand the ticket, propose the plan and wait for Jake before implementing.'
+    'Keep bounded autonomy: move fast inside the approved contract, but stop before forbidden writes, merges, deploys, or unclear scope changes.'
   ]
 
   if (contract) {
+    lines.push('Execution is already approved. After reading Jira context and sanity-checking the repo, give a concise implementation outline and begin implementation inside the approved contract without asking Jake to approve the plan again.')
     lines.push(`Approved execution contract: repo ${contract.repo}, branch ${contract.branch}, worktree ${contract.worktreePath}, autonomy level ${contract.autonomyLevel}.`)
     lines.push(`After reading Jira context, work in this directory: ${contract.worktreePath}.`)
+  } else {
+    lines.push('After you understand the ticket, propose the plan and wait for Jake before implementing.')
   }
 
   return lines.join(' ')

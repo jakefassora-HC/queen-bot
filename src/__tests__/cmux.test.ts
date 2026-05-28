@@ -80,6 +80,32 @@ test('buildCmuxExecutionWorkspaceArgs starts in the execution worktree', () => {
   expect(args.join(' ')).toContain('approved Jira plan')
 })
 
+test('execution handoff does not ask for another planning approval after approval contract exists', () => {
+  const prompt = buildClaudeHandoffPrompt('AISOL-465', {
+    ticketKey: 'AISOL-465',
+    repo: 'jakefassora-HC/queen-bot',
+    branch: 'agent/AISOL-465',
+    worktreePath: '/tmp/.agent-worktrees/AISOL-465',
+    autonomyLevel: 2,
+    approvedAt: '2026-05-28T00:00:00.000Z',
+    plan: {
+      ticketKey: 'AISOL-465',
+      goal: 'Goal',
+      context: ['Context'],
+      acceptanceCriteria: ['Done'],
+      implementationNotes: [],
+      verification: ['Test'],
+      risks: [],
+      forbiddenActions: ['Do not merge.'],
+      autonomyLevel: 2
+    }
+  })
+
+  expect(prompt).toContain('Execution is already approved')
+  expect(prompt).toContain('begin implementation')
+  expect(prompt).not.toContain('propose the plan and wait')
+})
+
 test('formatCmuxCommand previews the exact command that will run', () => {
   expect(formatCmuxCommand('/Users/jakefassora/projects/agent-queue', 'AISOL-465', 'cmux')).toBe(
     `cmux new-workspace --cwd /Users/jakefassora/projects/agent-queue --command ${JSON.stringify(commandWithPrompt('cmux'))}`

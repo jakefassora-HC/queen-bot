@@ -1,12 +1,92 @@
 import { execFileSync } from 'child_process'
-import { existsSync, mkdirSync } from 'fs'
+import { existsSync, mkdirSync, readdirSync } from 'fs'
 import path from 'path'
 import { REPOS_DIR } from './config.js'
 import type { ExecutionContract } from './types.js'
 
-export function repoLocalPath(repo: string): string {
+export interface RepoDiscoveryOptions {
+  home?: string
+  reposDir?: string
+  envPaths?: string[]
+  exists?: (candidate: string) => boolean
+  readdir?: (dir: string) => string[]
+  getRemoteUrl?: (candidate: string) => string | undefined
+}
+
+function repoName(repo: string): string {
   const name = repo.split('/')[1] ?? repo
-  return path.join(REPOS_DIR, name)
+  return name.replace(/\.git$/, '')
+}
+
+function managedRepoPath(repo: string, reposDir: string): string {
+  return path.join(reposDir, repoName(repo))
+}
+
+function defaultReaddir(dir: string): string[] {
+  try {
+    return readdirSync(dir, { withFileTypes: true })
+      .filter(entry => entry.isDirectory())
+      .map(entry => entry.name)
+  } catch {
+    return []
+  }
+}
+
+function defaultGetRemoteUrl(candidate: string): string | undefined {
+  try {
+    return execFileSync('git', ['-C', candidate, 'remote', 'get-url', 'origin'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+  } catch {
+    return undefined
+  }
+}
+
+export function normalizeRepoRef(value: string): string | undefined {
+  const trimmed = value.trim().replace(/\.git$/, '')
+  const sshMatch = trimmed.match(/github\.com:([^/]+\/[^/]+)$/i)
+  const urlMatch = trimmed.match(/github\.com\/([^/]+\/[^/]+)$/i)
+  const plainMatch = trimmed.match(/^([^/\s]+\/[^/\s]+)$/)
+  const repo = sshMatch?.[1] ?? urlMatch?.[1] ?? plainMatch?.[1]
+  return repo?.toLowerCase()
+}
+
+export function remoteMatchesRepo(remoteUrl: string, repo: string): boolean {
+  return normalizeRepoRef(remoteUrl) === normalizeRepoRef(repo)
+}
+
+function uniquePaths(paths: string[]): string[] {
+  return Array.from(new Set(paths.filter(Boolean)))
+}
+
+export function findExistingRepo(repo: string, options: RepoDiscoveryOptions = {}): string | undefined {
+  const home = options.home ?? process.env.HOME ?? ''
+  const reposDir = options.reposDir ?? REPOS_DIR
+  const exists = options.exists ?? existsSync
+  const readdir = options.readdir ?? defaultReaddir
+  const getRemoteUrl = options.getRemoteUrl ?? defaultGetRemoteUrl
+  const name = repoName(repo)
+  const ownerName = repo.replace('/', '-')
+  const projectsDir = home ? path.join(home, 'projects') : ''
+  const envPaths = options.envPaths ?? (process.env.AGENT_QUEUE_REPO_PATHS ?? '').split(path.delimiter)
+
+  const candidates = uniquePaths([
+    ...envPaths,
+    projectsDir ? path.join(projectsDir, name) : '',
+    projectsDir ? path.join(projectsDir, `${name}-v2`) : '',
+    projectsDir ? path.join(projectsDir, ownerName) : '',
+    ...(projectsDir ? readdir(projectsDir).map(entry => path.join(projectsDir, entry)) : []),
+    managedRepoPath(repo, reposDir)
+  ])
+
+  return candidates.find(candidate => {
+    if (!exists(candidate)) return false
+    const remoteUrl = getRemoteUrl(candidate)
+    return remoteUrl ? remoteMatchesRepo(remoteUrl, repo) : false
+  })
+}
+
+export function repoLocalPath(repo: string, options: RepoDiscoveryOptions = {}): string {
+  const reposDir = options.reposDir ?? REPOS_DIR
+  return findExistingRepo(repo, options) ?? managedRepoPath(repo, reposDir)
 }
 
 export function ensureRepo(repo: string): string {

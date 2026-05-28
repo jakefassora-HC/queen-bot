@@ -151,6 +151,18 @@ The draft flow borrows from:
 
 Queen Bot keeps prompts structured and compact so later execution agents do less re-reading.
 
+## Repo Discovery
+
+Execution uses git worktrees. Before cloning, Queen Bot looks for an existing local checkout with a matching GitHub remote in:
+
+- paths listed in `AGENT_QUEUE_REPO_PATHS` (use `:` between paths)
+- `~/projects/<repo-name>`
+- `~/projects/<repo-name>-v2`
+- immediate folders under `~/projects`
+- the managed fallback at `~/.agent-queue/repos/<repo-name>`
+
+If no matching checkout exists, Queen Bot falls back to a managed clone. This avoids duplicate clones for repos already on disk while still keeping execution branches isolated.
+
 ## Safety
 
 - Jira writes require `--create` and the exact interactive phrase `APPROVE JIRA WRITE`.
