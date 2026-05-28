@@ -1,4 +1,4 @@
-import { buildCreateIssuePayload, buildQueueJql, parseTicket } from '../jira.js'
+import { buildCreateIssuePayload, buildQueueJql, parseTicket, verifyJiraAuth } from '../jira.js'
 
 const rawIssue = {
   id: '10001',
@@ -37,6 +37,20 @@ test('buildQueueJql can narrow to a configured project', () => {
   expect(buildQueueJql('TOOL')).toBe(
     'project = TOOL AND assignee = currentUser() AND statusCategory != Done ORDER BY priority DESC'
   )
+})
+
+test('verifyJiraAuth throws a useful error on invalid credentials', async () => {
+  const fetcher = async () => ({
+    ok: false,
+    status: 401,
+    text: async () => 'Client must be authenticated to access this resource.'
+  }) as Response
+
+  await expect(verifyJiraAuth(
+    { baseUrl: 'https://example.atlassian.net', email: 'jake@example.com', project: '' },
+    'Basic abc',
+    fetcher
+  )).rejects.toThrow('Jira auth failed for jake@example.com at https://example.atlassian.net')
 })
 
 test('buildCreateIssuePayload turns a draft into Jira ADF fields', () => {

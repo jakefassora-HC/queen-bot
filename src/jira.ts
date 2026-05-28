@@ -1,11 +1,14 @@
 import type { JiraTicket } from './types.js'
 import type { TicketDraft } from './types.js'
+import type { JiraConfig } from './config.js'
 import { getJiraKey, requireJiraConfig } from './config.js'
 
 function authHeader(email: string): string {
   const creds = Buffer.from(`${email}:${getJiraKey()}`).toString('base64')
   return `Basic ${creds}`
 }
+
+type Fetcher = typeof fetch
 
 export function parseTicket(issue: Record<string, unknown>): JiraTicket {
   const fields = issue.fields as Record<string, unknown>
@@ -36,9 +39,11 @@ export function parseTicket(issue: Record<string, unknown>): JiraTicket {
 
 export async function fetchQueue(): Promise<JiraTicket[]> {
   const config = requireJiraConfig()
+  const auth = authHeader(config.email)
+  await verifyJiraAuth(config, auth)
   const jql = encodeURIComponent(buildQueueJql(config.project))
   const url = `${config.baseUrl}/rest/api/3/search/jql?jql=${jql}&maxResults=20`
-  const res = await fetch(url, { headers: { Authorization: authHeader(config.email), Accept: 'application/json' } })
+  const res = await fetch(url, { headers: { Authorization: auth, Accept: 'application/json' } })
   if (!res.ok) throw new Error(`Jira error ${res.status}: ${await res.text()}`)
   const data = await res.json() as { issues: unknown[] }
   return data.issues.map(i => parseTicket(i as Record<string, unknown>))
@@ -47,6 +52,22 @@ export async function fetchQueue(): Promise<JiraTicket[]> {
 export function buildQueueJql(project?: string): string {
   const scope = project ? `project = ${project} AND ` : ''
   return `${scope}assignee = currentUser() AND statusCategory != Done ORDER BY priority DESC`
+}
+
+export async function verifyJiraAuth(
+  config: JiraConfig,
+  auth: string,
+  fetcher: Fetcher = fetch
+): Promise<void> {
+  const res = await fetcher(`${config.baseUrl}/rest/api/3/myself`, {
+    headers: { Authorization: auth, Accept: 'application/json' }
+  })
+  if (res.ok) return
+  const body = await res.text()
+  throw new Error(
+    `Jira auth failed for ${config.email} at ${config.baseUrl}: HTTP ${res.status} ${body}\n` +
+    'Check that JIRA_BASE_URL matches the site where the token was created, JIRA_EMAIL matches the Atlassian account, and the Keychain item agent-queue-jira contains a valid Jira API token.'
+  )
 }
 
 type AdfNode = {
