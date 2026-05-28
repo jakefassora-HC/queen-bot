@@ -10,5 +10,6 @@ test('success message contains ticket and PR link', () => {
 test('failure message contains ticket and how to inspect', () => {
   const msg = buildFailureMessage('TOOL-48', 'some error')
   expect(msg).toContain('TOOL-48')
-  expect(msg).toContain('TOOL-48')
+  expect(msg).toContain('cmux workspace TOOL-48')
+  expect(msg).not.toContain('tmux')
 })

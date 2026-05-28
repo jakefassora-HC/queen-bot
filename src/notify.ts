@@ -6,5 +6,5 @@ export function buildSuccessMessage(ticketKey: string, summary: string, prUrl: s
 }
 
 export function buildFailureMessage(ticketKey: string, error: string): string {
-  return `❌ *${ticketKey}* failed\n\`${error}\`\nInspect: \`tmux attach -t ${ticketKey}\``
+  return `❌ *${ticketKey}* failed\n\`${error}\`\nInspect cmux workspace ${ticketKey}.`
 }

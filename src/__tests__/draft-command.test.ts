@@ -1,4 +1,9 @@
-import { buildDefaultResearchSources, parseDraftArgs } from '../draft-command.js'
+import {
+  JIRA_WRITE_APPROVAL_PHRASE,
+  buildDefaultResearchSources,
+  hasJiraWriteApproval,
+  parseDraftArgs
+} from '../draft-command.js'
 
 test('parseDraftArgs extracts file, project, and create flag', () => {
   const args = parseDraftArgs(['--file', 'idea.md', '--project', 'TOOL', '--create'])
@@ -25,4 +30,12 @@ test('default research sources include token-cost references', () => {
 
   expect(urls).toContain('https://github.com/rtk-ai/rtk')
   expect(urls).toContain('https://github.com/JuliusBrussee/caveman')
+})
+
+test('Jira writes require an explicit approval phrase', () => {
+  expect(JIRA_WRITE_APPROVAL_PHRASE).toBe('APPROVE JIRA WRITE')
+  expect(hasJiraWriteApproval('APPROVE JIRA WRITE')).toBe(true)
+  expect(hasJiraWriteApproval('y')).toBe(false)
+  expect(hasJiraWriteApproval('yes')).toBe(false)
+  expect(hasJiraWriteApproval('approved')).toBe(false)
 })

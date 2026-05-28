@@ -16,6 +16,12 @@ export interface DraftArgs {
   sources: ResearchSource[]
 }
 
+export const JIRA_WRITE_APPROVAL_PHRASE = 'APPROVE JIRA WRITE'
+
+export function hasJiraWriteApproval(answer: string): boolean {
+  return answer.trim() === JIRA_WRITE_APPROVAL_PHRASE
+}
+
 export function buildDefaultResearchSources(): ResearchSource[] {
   return [
     {
@@ -85,12 +91,12 @@ export async function runDraftCommand(args: string[]): Promise<void> {
   console.log(summarizeTicketDrafts(drafts))
 
   if (!parsed.create) {
-    console.log('\nPreview only. Re-run with --create to write approved drafts to Jira.')
+    console.log(`\nPreview only. Re-run with --create to request a Jira write, then type "${JIRA_WRITE_APPROVAL_PHRASE}" after reviewing the drafts.`)
     return
   }
 
-  const answer = await prompt('\nCreate these Jira tickets? [y/n]: ')
-  if (answer !== 'y') {
+  const answer = await prompt(`\nCreate these Jira tickets as ${parsed.projectKey}? Type "${JIRA_WRITE_APPROVAL_PHRASE}" to approve: `)
+  if (!hasJiraWriteApproval(answer)) {
     console.log('Skipped Jira write.')
     return
   }

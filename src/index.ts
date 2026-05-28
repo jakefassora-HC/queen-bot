@@ -11,6 +11,7 @@ import { getModel } from './models.js'
 import { runDraftCommand } from './draft-command.js'
 import { getJiraConfig } from './config.js'
 import { formatQueue, formatTicketDetails, resolveTicketSelection } from './queue-command.js'
+import { formatCmuxCommand, openCmuxTicketWorkspace } from './cmux.js'
 import type { JiraTicket } from './types.js'
 
 function prompt(q: string): Promise<string> {
@@ -54,7 +55,7 @@ async function runTicket(ticket: JiraTicket): Promise<void> {
     startedAt
   })
 
-  console.log(`  → Agent running. Watch this window or switch tmux panes.\n`)
+  console.log(`  → Agent running. Watch this window or switch cmux workspaces.\n`)
 
   try {
     if (r.runtime === 'claude-docker') {
@@ -137,6 +138,53 @@ export async function main(): Promise<void> {
     }
 
     console.log(formatTicketDetails(ticket))
+    return
+  }
+
+  if (args[0] === 'run') {
+    const selection = args[1]
+    if (!selection) {
+      console.error('Usage: agent-queue run <ticket-number-or-key>')
+      process.exitCode = 1
+      return
+    }
+
+    const ticket = resolveTicketSelection(tickets, selection)
+    if (!ticket) {
+      console.error(`Ticket not found in current queue: ${selection}`)
+      process.exitCode = 1
+      return
+    }
+
+    await runTicket(ticket)
+    return
+  }
+
+  if (args[0] === 'cmux') {
+    const start = args.includes('--start')
+    const selections = args.slice(1).filter(arg => arg !== '--start')
+    if (selections.length === 0) {
+      console.error('Usage: agent-queue cmux <ticket-number-or-key...> [--start]')
+      process.exitCode = 1
+      return
+    }
+
+    const selectedTickets = selections.map(selection => {
+      const ticket = resolveTicketSelection(tickets, selection)
+      if (!ticket) throw new Error(`Ticket not found in current queue: ${selection}`)
+      return ticket
+    })
+
+    if (!start) {
+      console.log('Preview only. Add --start after Jake approves opening these cmux workspaces.\n')
+      selectedTickets.forEach(ticket => console.log(formatCmuxCommand(process.cwd(), ticket.key)))
+      return
+    }
+
+    for (const ticket of selectedTickets) {
+      await openCmuxTicketWorkspace(process.cwd(), ticket.key)
+      console.log(`Opened cmux workspace ${ticket.key}`)
+    }
     return
   }
 

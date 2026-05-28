@@ -50,6 +50,20 @@ npm start -- show 9
 
 Use `list` and `show` from Claude slash commands. They only read Jira and print context, so the current Claude session can plan from the ticket without launching a nested Claude CLI.
 
+Preview cmux workspaces for approved ticket runs:
+
+```bash
+npm start -- cmux AISOL-465 AISOL-540
+```
+
+Open those cmux workspaces only after approval:
+
+```bash
+npm start -- cmux AISOL-465 AISOL-540 --start
+```
+
+Each cmux workspace is named by ticket key and runs `agent-queue run <ticket-key>`.
+
 Preview drafts:
 
 ```bash
@@ -61,6 +75,8 @@ Create approved drafts:
 ```bash
 npm start -- draft --file idea.md --project TOOL --create
 ```
+
+Jira writes require reviewing the preview and typing `APPROVE JIRA WRITE`. Short approvals like `y`, `yes`, or auto-mode approval are intentionally ignored.
 
 Add research context:
 
@@ -80,7 +96,8 @@ Queen Bot keeps prompts structured and compact so later execution agents do less
 
 ## Safety
 
-- Jira writes require `--create` and an interactive `y`.
+- Jira writes require `--create` and the exact interactive phrase `APPROVE JIRA WRITE`.
+- Auto mode is never Jira approval. Jake must explicitly approve every Jira write.
 - Ticket text and research notes are treated as untrusted source material.
 - Raw prompts, transcripts, and future execution logs should stay local.
 - Ruflo, Hermes, Codex, and manual execution should be adapter targets, not hidden dependencies.
