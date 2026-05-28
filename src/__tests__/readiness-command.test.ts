@@ -38,7 +38,8 @@ test('formatQueenDashboard renders a human-friendly checkbox dashboard', () => {
 
   expect(output).toContain('# Queen Bot')
   expect(output).toContain('Roadwarrior: 1')
-  expect(output).toContain('## Roadwarrior (1 shown, 0 ready)')
+  expect(output).toContain('## Current Sprint (1 tickets, 0 ready)')
+  expect(output).toContain('### Roadwarrior (1 ticket, 0 ready)')
   expect(output).toContain('- [ ] 1. AISOL-465')
   expect(output).not.toContain('┌')
   expect(output).toContain('Reply with a number/key')
@@ -61,4 +62,38 @@ test('formatQueenDashboard shows every ticket by default', () => {
 
   expect(output).toContain('- [ ] 9. AISOL-9')
   expect(output).not.toContain('hidden')
+})
+
+test('formatQueenDashboard separates current sprint from backlog before epic groups', () => {
+  const tickets: JiraTicket[] = [
+    {
+      id: '1',
+      key: 'AISOL-1',
+      summary: 'Active work',
+      description: '',
+      storyPoints: null,
+      issueType: 'Story',
+      labels: [],
+      status: 'In Progress',
+      sprint: { name: 'Sprint 15', state: 'active' },
+      parent: { key: 'AISOL-97', summary: 'Roadwarrior' }
+    },
+    {
+      id: '2',
+      key: 'AISOL-2',
+      summary: 'Later work',
+      description: '',
+      storyPoints: null,
+      issueType: 'Story',
+      labels: [],
+      status: 'To Do',
+      parent: { key: 'AISOL-263', summary: 'AI Toolshed' }
+    }
+  ]
+
+  const output = formatQueenDashboard(tickets)
+
+  expect(output.indexOf('## Current Sprint')).toBeLessThan(output.indexOf('## Backlog'))
+  expect(output).toContain('### Roadwarrior (1 ticket, 0 ready)')
+  expect(output).toContain('### AI Toolshed (1 ticket, 0 ready)')
 })

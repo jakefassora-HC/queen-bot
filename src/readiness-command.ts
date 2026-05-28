@@ -9,6 +9,11 @@ function epicLabel(ticket: JiraTicket): string {
   return ticket.parent?.summary || 'No epic'
 }
 
+function sprintSection(ticket: JiraTicket): 'Current Sprint' | 'Backlog' {
+  if (ticket.sprint?.state?.toLowerCase() === 'active') return 'Current Sprint'
+  return ticket.status.toLowerCase() === 'to do' ? 'Backlog' : 'Current Sprint'
+}
+
 function ticketNumber(ticket: JiraTicket, tickets: JiraTicket[]): number {
   return tickets.findIndex(item => item.key === ticket.key) + 1
 }
@@ -34,11 +39,14 @@ export function formatQueenDashboard(tickets: JiraTicket[], limit = tickets.leng
     counts[label] = (counts[label] ?? 0) + 1
     return counts
   }, {})
-  const groups = visibleTickets.reduce<Map<string, JiraTicket[]>>((grouped, ticket) => {
+  const sections = visibleTickets.reduce<Map<string, Map<string, JiraTicket[]>>>((grouped, ticket) => {
+    const section = sprintSection(ticket)
     const label = epicLabel(ticket)
-    grouped.set(label, [...(grouped.get(label) ?? []), ticket])
+    const sectionGroups = grouped.get(section) ?? new Map<string, JiraTicket[]>()
+    sectionGroups.set(label, [...(sectionGroups.get(label) ?? []), ticket])
+    grouped.set(section, sectionGroups)
     return grouped
-  }, new Map<string, JiraTicket[]>())
+  }, new Map<string, Map<string, JiraTicket[]>>())
   const lines = [
     '# Queen Bot',
     '',
@@ -50,19 +58,30 @@ export function formatQueenDashboard(tickets: JiraTicket[], limit = tickets.leng
     ''
   ]
 
-  for (const [label, groupTickets] of groups) {
-    const groupReadyCount = groupTickets.filter(ticket => scoreTicketReadiness(ticket).canExecute).length
-    lines.push(`## ${label} (${groupTickets.length} shown, ${groupReadyCount} ready)`)
+  for (const section of ['Current Sprint', 'Backlog']) {
+    const sectionGroups = sections.get(section)
+    if (!sectionGroups) continue
+
+    const sectionTickets = Array.from(sectionGroups.values()).flat()
+    const sectionReadyCount = sectionTickets.filter(ticket => scoreTicketReadiness(ticket).canExecute).length
+    lines.push(`## ${section} (${sectionTickets.length} tickets, ${sectionReadyCount} ready)`)
     lines.push('')
 
-    for (const ticket of groupTickets) {
-      const readiness = scoreTicketReadiness(ticket)
-      const nextAction = readiness.canExecute ? 'ready to discuss execution' : 'plan before execution'
-      lines.push(`- [ ] ${ticketNumber(ticket, tickets)}. ${ticket.key} - ${readiness.score}% ${readiness.band} - ${ticket.status || 'unknown'}`)
-      lines.push(`  ${ticket.summary}`)
-      lines.push(`  ${ticket.issueType || 'unknown'} | points: ${pointsLabel(ticket.storyPoints)} | next: ${nextAction}`)
-      if (!readiness.canExecute) lines.push(`  Missing: ${readiness.missing.join(', ')}`)
+    for (const [label, groupTickets] of sectionGroups) {
+      const groupReadyCount = groupTickets.filter(ticket => scoreTicketReadiness(ticket).canExecute).length
+      const noun = groupTickets.length === 1 ? 'ticket' : 'tickets'
+      lines.push(`### ${label} (${groupTickets.length} ${noun}, ${groupReadyCount} ready)`)
       lines.push('')
+
+      for (const ticket of groupTickets) {
+        const readiness = scoreTicketReadiness(ticket)
+        const nextAction = readiness.canExecute ? 'ready to discuss execution' : 'plan before execution'
+        lines.push(`- [ ] ${ticketNumber(ticket, tickets)}. ${ticket.key} - ${readiness.score}% ${readiness.band} - ${ticket.status || 'unknown'}`)
+        lines.push(`  ${ticket.summary}`)
+        lines.push(`  ${ticket.issueType || 'unknown'} | points: ${pointsLabel(ticket.storyPoints)} | next: ${nextAction}`)
+        if (!readiness.canExecute) lines.push(`  Missing: ${readiness.missing.join(', ')}`)
+        lines.push('')
+      }
     }
   }
 

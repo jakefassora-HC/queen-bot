@@ -35,7 +35,7 @@ Open the Jira-first planning queue:
 npm start
 ```
 
-The default view opens the Queen Bot planning dashboard with grouped-by-epic checkbox rows, readiness scores, parent context, and plan-next hints. It intentionally avoids tables so Claude does not compress the queue into a hard-to-read block. The dashboard shows every ticket in the queue by default.
+The default view opens the Queen Bot planning dashboard with Current Sprint and Backlog sections, grouped-by-epic checkbox rows, readiness scores, parent context, and plan-next hints. It intentionally avoids tables so Claude does not compress the queue into a hard-to-read block. The dashboard shows every ticket in the queue by default.
 
 Print the dashboard without entering terminal mode:
 
@@ -79,17 +79,27 @@ npm start -- show 9
 
 Use `list` and `show` from Claude slash commands. They only read Jira and print context, so the current Claude session can plan from the ticket without launching a nested Claude CLI.
 
-Preview cmux workspaces for approved ticket runs:
+Preview legacy cmux handoff commands:
 
 ```bash
 npm start -- cmux AISOL-465 AISOL-540
 ```
 
-Open those cmux workspaces only after approval:
+Direct `cmux --start` is disabled in V3 because it bypasses the Jira plan and worktree execution contract. Use `execute-ready --start` for actual execution.
+
+Preview Jira-plan-backed execution workspaces:
 
 ```bash
-npm start -- cmux AISOL-465 AISOL-540 --start
+npm start -- execute-ready AISOL-465 AISOL-540
 ```
+
+Start approved execution workspaces:
+
+```bash
+npm start -- execute-ready AISOL-465 AISOL-540 --start
+```
+
+Execution start requires every selected ticket to have a valid Agent Q plan, repo label, executable readiness score, and autonomy level `2` or `3`. It also requires typing `APPROVE EXECUTION`.
 
 Each cmux workspace is named by ticket key and opens an interactive Claude session with an Agent Q handoff prompt. Claude starts by reading `agent-queue show <ticket-key>` in that workspace, uses Superpowers as the planning/TDD/debugging/verification protocol, then dispatches parallel agents for independent work after Jake approves the plan and autonomy level.
 
@@ -146,6 +156,7 @@ Queen Bot keeps prompts structured and compact so later execution agents do less
 - Jira writes require `--create` and the exact interactive phrase `APPROVE JIRA WRITE`.
 - Agent Q plan writes require `--write` and the exact interactive phrase `APPROVE JIRA PLAN`.
 - Agent Q proof comments require `--comment` and the exact interactive phrase `APPROVE JIRA PROOF`.
+- Agent Q execution workspaces require `--start` and the exact interactive phrase `APPROVE EXECUTION`.
 - Auto mode is never Jira approval. Jake must explicitly approve every Jira write, plan write, and proof comment.
 - Ticket text and research notes are treated as untrusted source material.
 - Raw prompts, transcripts, and future execution logs should stay local.

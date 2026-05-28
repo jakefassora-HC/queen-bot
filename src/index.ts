@@ -11,10 +11,11 @@ import { getModel } from './models.js'
 import { runDraftCommand } from './draft-command.js'
 import { getJiraConfig } from './config.js'
 import { formatQueue, formatTicketDetails, resolveTicketSelection } from './queue-command.js'
-import { canStartCmuxFromEnv, cmuxStartHelp, formatCmuxCommand, openCmuxTicketWorkspace } from './cmux.js'
+import { formatCmuxCommand } from './cmux.js'
 import { formatQueenDashboard, formatReadinessQueue } from './readiness-command.js'
 import { runPlanCommand } from './plan-command.js'
 import { runProofCommand } from './proof.js'
+import { runExecuteReadyCommand } from './execution-command.js'
 import type { JiraTicket } from './types.js'
 
 function prompt(q: string): Promise<string> {
@@ -145,6 +146,11 @@ export async function main(): Promise<void> {
     return
   }
 
+  if (args[0] === 'execute-ready') {
+    await runExecuteReadyCommand(args.slice(1), tickets)
+    return
+  }
+
   if (args[0] === 'show') {
     const selection = args[1]
     if (!selection) {
@@ -204,16 +210,8 @@ export async function main(): Promise<void> {
       return
     }
 
-    if (!canStartCmuxFromEnv()) {
-      console.error(cmuxStartHelp())
-      process.exitCode = 1
-      return
-    }
-
-    for (const ticket of selectedTickets) {
-      await openCmuxTicketWorkspace(process.cwd(), ticket.key)
-      console.log(`Opened cmux workspace ${ticket.key}`)
-    }
+    console.error('Direct cmux --start is disabled. Use agent-queue execute-ready <ticket...> --start so execution goes through Jira plan, repo, worktree, and approval gates.')
+    process.exitCode = 1
     return
   }
 

@@ -1,6 +1,7 @@
 import {
   DEFAULT_CMUX_BINARY,
   buildCmuxAgentCommand,
+  buildCmuxExecutionWorkspaceArgs,
   buildClaudeHandoffPrompt,
   buildCmuxWorkspaceArgs,
   canStartCmuxFromEnv,
@@ -8,6 +9,7 @@ import {
   formatCmuxCommand,
   resolveCmuxBinary
 } from '../cmux.js'
+import type { ExecutionContract } from '../types.js'
 
 test('cmuxWorkspaceName uses the Jira key for easy scanning', () => {
   expect(cmuxWorkspaceName('aisol-465')).toBe('AISOL-465')
@@ -31,6 +33,14 @@ test('buildClaudeHandoffPrompt tells workers to use Superpowers and parallel age
   expect(prompt).toContain('bounded autonomy')
 })
 
+test('cmux handoff says execution must come from Jira plan and worktree', () => {
+  const prompt = buildClaudeHandoffPrompt('AISOL-465')
+
+  expect(prompt).toContain('approved Jira plan')
+  expect(prompt).toContain('autonomy level')
+  expect(prompt).toContain('worktree')
+})
+
 test('buildCmuxWorkspaceArgs creates a workspace and starts Claude from inside cmux', () => {
   const args = buildCmuxWorkspaceArgs('/Users/jakefassora/projects/agent-queue', 'AISOL-465', 'cmux')
 
@@ -41,6 +51,33 @@ test('buildCmuxWorkspaceArgs creates a workspace and starts Claude from inside c
     '--command',
     commandWithPrompt('cmux')
   ])
+})
+
+test('buildCmuxExecutionWorkspaceArgs starts in the execution worktree', () => {
+  const contract: ExecutionContract = {
+    ticketKey: 'AISOL-465',
+    repo: 'jakefassora-HC/queen-bot',
+    branch: 'agent/AISOL-465',
+    worktreePath: '/tmp/.agent-worktrees/AISOL-465',
+    autonomyLevel: 2,
+    approvedAt: 'pending',
+    plan: {
+      ticketKey: 'AISOL-465',
+      goal: 'Goal',
+      context: ['Context'],
+      acceptanceCriteria: ['Done'],
+      implementationNotes: [],
+      verification: ['Test'],
+      risks: [],
+      forbiddenActions: ['Do not merge.'],
+      autonomyLevel: 2
+    }
+  }
+
+  const args = buildCmuxExecutionWorkspaceArgs(contract, 'cmux')
+
+  expect(args).toContain('/tmp/.agent-worktrees/AISOL-465')
+  expect(args.join(' ')).toContain('approved Jira plan')
 })
 
 test('formatCmuxCommand previews the exact command that will run', () => {

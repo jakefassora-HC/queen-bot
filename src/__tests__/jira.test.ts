@@ -6,6 +6,7 @@ import {
   buildQueueSearchUrl,
   buildUpdateDescriptionPayload,
   parseTicket,
+  parseRepoLabel,
   verifyJiraAuth
 } from '../jira.js'
 
@@ -33,6 +34,24 @@ test('parseTicket maps Jira API response to JiraTicket', () => {
   expect(ticket.issueType).toBe('Story')
   expect(ticket.parent?.key).toBe('TOOL-1')
   expect(ticket.parent?.summary).toBe('Parent epic')
+})
+
+test('parseTicket maps Jira sprint field when present', () => {
+  const ticket = parseTicket({
+    ...rawIssue,
+    fields: {
+      ...rawIssue.fields,
+      customfield_10020: [{ name: 'Sprint 15', state: 'active' }]
+    }
+  })
+
+  expect(ticket.sprint).toEqual({ name: 'Sprint 15', state: 'active' })
+})
+
+test('parseRepoLabel rejects unsafe repo labels', () => {
+  expect(parseRepoLabel(['repo:jakefassora-HC/queen-bot'])).toBe('jakefassora-HC/queen-bot')
+  expect(parseRepoLabel(['repo:jakefassora-HC/queen-bot;rm -rf /'])).toBeUndefined()
+  expect(parseRepoLabel(['repo:../queen-bot'])).toBeUndefined()
 })
 
 test('adfToPlainText preserves headings and list lines for Agent Q plans', () => {
@@ -77,6 +96,7 @@ test('buildQueueSearchUrl explicitly requests fields needed by parseTicket', () 
 
   expect(url).toContain('/rest/api/3/search/jql?')
   expect(decodeURIComponent(url)).toContain('fields=summary,status,labels,description,assignee,project,issuetype,parent,customfield_10016,customfield_10014')
+  expect(decodeURIComponent(url)).toContain('customfield_10020')
 })
 
 test('verifyJiraAuth throws a useful error on invalid credentials', async () => {

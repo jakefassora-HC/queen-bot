@@ -1,5 +1,6 @@
 import { spawn } from 'child_process'
 import { existsSync } from 'fs'
+import type { ExecutionContract } from './types.js'
 
 export const DEFAULT_CMUX_BINARY = '/Applications/cmux.app/Contents/Resources/bin/cmux'
 
@@ -33,28 +34,37 @@ export function cmuxStartHelp(): string {
   ].join('\n')
 }
 
-export function buildClaudeHandoffPrompt(ticketKey: string): string {
+export function buildClaudeHandoffPrompt(ticketKey: string, contract?: ExecutionContract): string {
   const key = cmuxWorkspaceName(ticketKey)
-  return [
+  const lines = [
     `You are Agent Q for Jira ticket ${key}.`,
     'Start by running:',
     `cd ~/projects/agent-queue && agent-queue show ${key}`,
     'Use that Jira output as source context in this Claude session.',
-    'If the ticket has no description, ask Jake what the ticket should mean and draft Jira-ready content first.',
+    'Execute only after the ticket has an approved Jira plan and autonomy level.',
+    'Use an isolated worktree and branch for implementation.',
+    'If the Jira plan is missing or weak, stop and improve Jira first.',
     'Do not create, update, or transition Jira tickets without Jake explicitly approving the exact write.',
     'Do not run agent-queue run from inside this session; that would spawn another non-interactive Claude process.',
     'Use Superpowers as the quality protocol: brainstorm/plan first, use TDD for changes, use systematic debugging for failures, and verify before claiming completion.',
     'After Jake approves the plan and autonomy level, dispatch parallel agents for independent research, implementation, review, or verification domains whenever doing so is safe and useful.',
     'Keep bounded autonomy: move fast inside the approved contract, but stop before forbidden writes, merges, deploys, or unclear scope changes.',
     'After you understand the ticket, propose the plan and wait for Jake before implementing.'
-  ].join(' ')
+  ]
+
+  if (contract) {
+    lines.push(`Approved execution contract: repo ${contract.repo}, branch ${contract.branch}, worktree ${contract.worktreePath}, autonomy level ${contract.autonomyLevel}.`)
+    lines.push(`After reading Jira context, work in this directory: ${contract.worktreePath}.`)
+  }
+
+  return lines.join(' ')
 }
 
-export function buildCmuxAgentCommand(ticketKey: string, cmuxBinary = resolveCmuxBinary()): string {
+export function buildCmuxAgentCommand(ticketKey: string, cmuxBinary = resolveCmuxBinary(), contract?: ExecutionContract): string {
   const key = cmuxWorkspaceName(ticketKey)
   return [
     `${shellPreviewQuote(cmuxBinary)} rename-workspace ${shellPreviewQuote(key)}`,
-    `claude --name ${shellPreviewQuote(key)} ${shellPreviewQuote(buildClaudeHandoffPrompt(key))}`
+    `claude --name ${shellPreviewQuote(key)} ${shellPreviewQuote(buildClaudeHandoffPrompt(key, contract))}`
   ].join(' && ')
 }
 
@@ -81,10 +91,46 @@ export function formatCmuxCommand(
   return [binary, ...buildCmuxWorkspaceArgs(projectDir, ticketKey, binary).map(shellPreviewQuote)].join(' ')
 }
 
+export function buildCmuxExecutionWorkspaceArgs(
+  contract: ExecutionContract,
+  cmuxBinary = resolveCmuxBinary()
+): string[] {
+  const key = cmuxWorkspaceName(contract.ticketKey)
+  return [
+    'new-workspace',
+    '--cwd',
+    contract.worktreePath,
+    '--command',
+    buildCmuxAgentCommand(key, cmuxBinary, contract)
+  ]
+}
+
+export function formatCmuxExecutionCommand(
+  contract: ExecutionContract,
+  binary = resolveCmuxBinary()
+): string {
+  return [binary, ...buildCmuxExecutionWorkspaceArgs(contract, binary).map(shellPreviewQuote)].join(' ')
+}
+
 export function openCmuxTicketWorkspace(projectDir: string, ticketKey: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const binary = resolveCmuxBinary()
     const proc = spawn(binary, buildCmuxWorkspaceArgs(projectDir, ticketKey, binary), {
+      stdio: 'inherit',
+      shell: false
+    })
+
+    proc.on('exit', code => {
+      if (code === 0) resolve()
+      else reject(new Error(`cmux exited with code ${code}`))
+    })
+  })
+}
+
+export function openCmuxExecutionWorkspace(contract: ExecutionContract): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const binary = resolveCmuxBinary()
+    const proc = spawn(binary, buildCmuxExecutionWorkspaceArgs(contract, binary), {
       stdio: 'inherit',
       shell: false
     })
