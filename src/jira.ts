@@ -1,9 +1,9 @@
 import type { JiraTicket } from './types.js'
 import type { TicketDraft } from './types.js'
-import { getJiraKey, JIRA_BASE_URL, JIRA_EMAIL, JIRA_PROJECT } from './config.js'
+import { getJiraKey, requireJiraConfig } from './config.js'
 
-function authHeader(): string {
-  const creds = Buffer.from(`${JIRA_EMAIL}:${getJiraKey()}`).toString('base64')
+function authHeader(email: string): string {
+  const creds = Buffer.from(`${email}:${getJiraKey()}`).toString('base64')
   return `Basic ${creds}`
 }
 
@@ -35,14 +35,18 @@ export function parseTicket(issue: Record<string, unknown>): JiraTicket {
 }
 
 export async function fetchQueue(): Promise<JiraTicket[]> {
-  const jql = encodeURIComponent(
-    `assignee = currentUser() AND status != Done ORDER BY priority DESC`
-  )
-  const url = `${JIRA_BASE_URL}/rest/api/3/search/jql?jql=${jql}&maxResults=20`
-  const res = await fetch(url, { headers: { Authorization: authHeader(), Accept: 'application/json' } })
+  const config = requireJiraConfig()
+  const jql = encodeURIComponent(buildQueueJql(config.project))
+  const url = `${config.baseUrl}/rest/api/3/search/jql?jql=${jql}&maxResults=20`
+  const res = await fetch(url, { headers: { Authorization: authHeader(config.email), Accept: 'application/json' } })
   if (!res.ok) throw new Error(`Jira error ${res.status}: ${await res.text()}`)
   const data = await res.json() as { issues: unknown[] }
   return data.issues.map(i => parseTicket(i as Record<string, unknown>))
+}
+
+export function buildQueueJql(project?: string): string {
+  const scope = project ? `project = ${project} AND ` : ''
+  return `${scope}assignee = currentUser() AND statusCategory != Done ORDER BY priority DESC`
 }
 
 type AdfNode = {
@@ -123,10 +127,11 @@ export function buildCreateIssuePayload(projectKey: string, draft: TicketDraft):
 }
 
 export async function createIssueFromDraft(projectKey: string, draft: TicketDraft): Promise<string> {
-  const res = await fetch(`${JIRA_BASE_URL}/rest/api/3/issue`, {
+  const config = requireJiraConfig()
+  const res = await fetch(`${config.baseUrl}/rest/api/3/issue`, {
     method: 'POST',
     headers: {
-      Authorization: authHeader(),
+      Authorization: authHeader(config.email),
       Accept: 'application/json',
       'Content-Type': 'application/json'
     },
@@ -138,22 +143,24 @@ export async function createIssueFromDraft(projectKey: string, draft: TicketDraf
 }
 
 export async function transitionTicket(ticketKey: string, statusName: 'In Progress' | 'Done'): Promise<void> {
-  const transUrl = `${JIRA_BASE_URL}/rest/api/3/issue/${ticketKey}/transitions`
-  const transRes = await fetch(transUrl, { headers: { Authorization: authHeader(), Accept: 'application/json' } })
+  const config = requireJiraConfig()
+  const transUrl = `${config.baseUrl}/rest/api/3/issue/${ticketKey}/transitions`
+  const transRes = await fetch(transUrl, { headers: { Authorization: authHeader(config.email), Accept: 'application/json' } })
   const transData = await transRes.json() as { transitions: Array<{ id: string; name: string }> }
   const transition = transData.transitions.find(t => t.name === statusName)
   if (!transition) return
   await fetch(transUrl, {
     method: 'POST',
-    headers: { Authorization: authHeader(), 'Content-Type': 'application/json' },
+    headers: { Authorization: authHeader(config.email), 'Content-Type': 'application/json' },
     body: JSON.stringify({ transition: { id: transition.id } })
   })
 }
 
 export async function commentOnTicket(ticketKey: string, text: string): Promise<void> {
-  await fetch(`${JIRA_BASE_URL}/rest/api/3/issue/${ticketKey}/comment`, {
+  const config = requireJiraConfig()
+  await fetch(`${config.baseUrl}/rest/api/3/issue/${ticketKey}/comment`, {
     method: 'POST',
-    headers: { Authorization: authHeader(), 'Content-Type': 'application/json' },
+    headers: { Authorization: authHeader(config.email), 'Content-Type': 'application/json' },
     body: JSON.stringify({ body: { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] } })
   })
 }

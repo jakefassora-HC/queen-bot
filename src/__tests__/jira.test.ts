@@ -1,4 +1,4 @@
-import { buildCreateIssuePayload, parseTicket } from '../jira.js'
+import { buildCreateIssuePayload, buildQueueJql, parseTicket } from '../jira.js'
 
 const rawIssue = {
   id: '10001',
@@ -25,6 +25,18 @@ test('parseTicket sizes by story points', () => {
   expect(parseTicket({ ...rawIssue, fields: { ...rawIssue.fields, customfield_10016: 1 } }).size).toBe('small')
   expect(parseTicket({ ...rawIssue, fields: { ...rawIssue.fields, customfield_10016: 3 } }).size).toBe('medium')
   expect(parseTicket({ ...rawIssue, fields: { ...rawIssue.fields, customfield_10016: 8 } }).size).toBe('large')
+})
+
+test('buildQueueJql searches assigned non-done-category tickets without requiring a project', () => {
+  expect(buildQueueJql()).toBe(
+    'assignee = currentUser() AND statusCategory != Done ORDER BY priority DESC'
+  )
+})
+
+test('buildQueueJql can narrow to a configured project', () => {
+  expect(buildQueueJql('TOOL')).toBe(
+    'project = TOOL AND assignee = currentUser() AND statusCategory != Done ORDER BY priority DESC'
+  )
 })
 
 test('buildCreateIssuePayload turns a draft into Jira ADF fields', () => {

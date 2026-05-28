@@ -6,6 +6,35 @@ Local-first Jira and agent workflow coordinator.
 
 Queen Bot v2 starts by turning planning discussions into Jira-ready ticket drafts. It researches useful source links, compresses context before prompting, prints a human approval preview, and only writes to Jira after an explicit create flag plus confirmation.
 
+## Jira Setup
+
+Create a local `.env` file:
+
+```bash
+cp .env.example .env
+```
+
+Set:
+
+```bash
+JIRA_BASE_URL=https://your-company.atlassian.net
+JIRA_EMAIL=you@your-company.com
+```
+
+`JIRA_PROJECT` is optional for queue reads. When it is set, Queen Bot narrows the ticket queue to that project.
+
+Store your Jira API token in macOS Keychain:
+
+```bash
+security add-generic-password -s agent-queue-jira -a $USER -w <jira-api-token>
+```
+
+List assigned open tickets:
+
+```bash
+npm start
+```
+
 Preview drafts:
 
 ```bash

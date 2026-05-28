@@ -9,6 +9,7 @@ import { commitAndPush, openDraftPr } from './pr.js'
 import { writeRun, updateRun, activeRuns } from './state.js'
 import { getModel } from './models.js'
 import { runDraftCommand } from './draft-command.js'
+import { getJiraConfig } from './config.js'
 import type { JiraTicket } from './types.js'
 
 function prompt(q: string): Promise<string> {
@@ -108,7 +109,12 @@ export async function main(): Promise<void> {
     console.error(`  ❌ Jira error: ${err instanceof Error ? err.message : String(err)}`)
     return
   }
-  if (tickets.length === 0) { console.log(`No open tickets assigned to ${process.env.JIRA_EMAIL} in ${process.env.JIRA_PROJECT}.`); return }
+  if (tickets.length === 0) {
+    const config = getJiraConfig()
+    const scope = config.project ? ` in ${config.project}` : ''
+    console.log(`No open tickets assigned to ${config.email}${scope}.`)
+    return
+  }
 
   renderQueue(tickets)
   const input = await prompt('\n  Pick tickets (e.g. 1,3): ')
