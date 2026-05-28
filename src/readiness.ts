@@ -12,7 +12,7 @@ const REQUIRED_SIGNALS = [
 
 export function scoreTicketReadiness(ticket: JiraTicket): TicketReadiness {
   const parsedPlan = parseJiraPlan(ticket.description || '')
-  const description = parsedPlan ? renderJiraPlan(parsedPlan) : ''
+  const description = parsedPlan ? renderJiraPlan(parsedPlan) : ticket.description || ''
   const strengths: string[] = []
   const missing: string[] = parsedPlan ? [] : ['Agent Q Plan']
   let score = ticket.summary.trim() ? 10 : 0
@@ -36,6 +36,21 @@ export function scoreTicketReadiness(ticket: JiraTicket): TicketReadiness {
     strengths.push('repo')
   } else {
     missing.push('repo')
+  }
+
+  if (ticket.parent) {
+    score += 5
+    strengths.push('parent epic')
+  }
+
+  if ((ticket.subtasks ?? []).length > 0) {
+    score += 5
+    strengths.push('subtasks')
+  }
+
+  if ((ticket.issueLinks ?? []).length > 0) {
+    score += 5
+    strengths.push('linked work items')
   }
 
   const boundedScore = Math.min(100, score)

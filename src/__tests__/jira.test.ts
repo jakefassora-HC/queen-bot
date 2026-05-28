@@ -34,6 +34,8 @@ test('parseTicket maps Jira API response to JiraTicket', () => {
   expect(ticket.issueType).toBe('Story')
   expect(ticket.parent?.key).toBe('TOOL-1')
   expect(ticket.parent?.summary).toBe('Parent epic')
+  expect(ticket.subtasks).toEqual([])
+  expect(ticket.issueLinks).toEqual([])
 })
 
 test('parseTicket maps Jira sprint field when present', () => {
@@ -52,6 +54,29 @@ test('parseRepoLabel rejects unsafe repo labels', () => {
   expect(parseRepoLabel(['repo:jakefassora-HC/queen-bot'])).toBe('jakefassora-HC/queen-bot')
   expect(parseRepoLabel(['repo:jakefassora-HC/queen-bot;rm -rf /'])).toBeUndefined()
   expect(parseRepoLabel(['repo:../queen-bot'])).toBeUndefined()
+})
+
+test('parseTicket maps subtasks and linked work items', () => {
+  const ticket = parseTicket({
+    ...rawIssue,
+    fields: {
+      ...rawIssue.fields,
+      subtasks: [{
+        key: 'TOOL-49',
+        fields: { summary: 'Add tests', status: { name: 'To Do' } }
+      }],
+      issuelinks: [{
+        type: { name: 'Relates' },
+        outwardIssue: {
+          key: 'TOOL-50',
+          fields: { summary: 'Related API work' }
+        }
+      }]
+    }
+  })
+
+  expect(ticket.subtasks).toEqual([{ key: 'TOOL-49', summary: 'Add tests', status: 'To Do' }])
+  expect(ticket.issueLinks).toEqual([{ key: 'TOOL-50', summary: 'Related API work', type: 'Relates', direction: 'outward' }])
 })
 
 test('adfToPlainText preserves headings and list lines for Agent Q plans', () => {
@@ -95,7 +120,7 @@ test('buildQueueSearchUrl explicitly requests fields needed by parseTicket', () 
   const url = buildQueueSearchUrl('https://example.atlassian.net', buildQueueJql('TOOL'), 20)
 
   expect(url).toContain('/rest/api/3/search/jql?')
-  expect(decodeURIComponent(url)).toContain('fields=summary,status,labels,description,assignee,project,issuetype,parent,customfield_10016,customfield_10014')
+  expect(decodeURIComponent(url)).toContain('fields=summary,status,labels,description,assignee,project,issuetype,parent,subtasks,issuelinks,customfield_10016,customfield_10014')
   expect(decodeURIComponent(url)).toContain('customfield_10020')
 })
 

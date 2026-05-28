@@ -77,3 +77,28 @@ test('loose planning words do not count as an approved Agent Q plan', () => {
   expect(readiness.band).toBe('needs-planning')
   expect(readiness.missing).toContain('Agent Q Plan')
 })
+
+test('rich Jira description raises planning readiness even before Agent Q plan approval', () => {
+  const readiness = scoreTicketReadiness({
+    ...baseTicket,
+    description: [
+      'Goal: update the onboarding flow.',
+      'Context: users cannot tell how to complete setup.',
+      'Acceptance Criteria: new teammate can follow the ticket and complete setup.',
+      'Verification: run tests and manually check the onboarding path.',
+      'Autonomy Level: 2',
+      'Forbidden Actions: do not merge or deploy.'
+    ].join('\n'),
+    repo: 'jakefassora-HC/queen-bot',
+    parent: { key: 'AISOL-97', summary: 'Roadwarrior' },
+    subtasks: [{ key: 'AISOL-601', summary: 'Document setup', status: 'To Do' }],
+    issueLinks: [{ key: 'AISOL-602', summary: 'Related auth issue', type: 'relates', direction: 'outward' }],
+    labels: ['repo:jakefassora-HC/queen-bot']
+  })
+
+  expect(readiness.score).toBeGreaterThanOrEqual(80)
+  expect(readiness.canExecute).toBe(false)
+  expect(readiness.missing).toContain('Agent Q Plan')
+  expect(readiness.strengths).toContain('subtasks')
+  expect(readiness.strengths).toContain('linked work items')
+})
