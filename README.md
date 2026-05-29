@@ -151,6 +151,8 @@ The draft flow borrows from:
 
 Queen Bot keeps prompts structured and compact so later execution agents do less re-reading.
 
+Future token reductions should make approved workers read compact execution packets and local plan files instead of full Jira dumps. Execution previews should hide giant cmux commands unless `--verbose` is requested, and preflight checks should catch missing plan format, repo labels, local plan paths, and linked child work before model loops start.
+
 ## Roadmap: Work Graph Planning
 
 Future Queen Bot planning should treat Jira as a work graph instead of a giant document store.

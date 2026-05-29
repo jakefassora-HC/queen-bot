@@ -101,6 +101,99 @@ Suggested large-ticket loop:
 
 This may later support a `/exit`-style loop where a Claude execution workspace hands its critique back to the persistent Queen/Codex workspace.
 
+## Token Load Reduction
+
+The work graph model should reduce token use by changing what agents read and when they read it.
+
+Current avoidable token burners:
+
+- workers reread full Jira output every time
+- long descriptions and comments are dumped into chat
+- retry loops happen when plan format, repo labels, or links are wrong
+- execution previews print huge cmux commands and full handoff prompts
+- workers sometimes do another planning checkpoint after execution approval
+
+Target fixes:
+
+1. **Use a compact execution packet**
+
+   Add a command that prints only the execution contract:
+
+   ```bash
+   agent-queue context AISOL-592 --brief
+   ```
+
+   The brief packet should include the Super PRD, local plan path, repo, branch, worktree, linked child tickets, approval state, and forbidden actions. It should not dump every Jira field, every comment, or raw command previews.
+
+2. **Stop requiring full Jira rereads in execution workers**
+
+   Once the Super PRD and local full plan exist, workers should read:
+
+   - compact execution packet
+   - local full plan markdown
+   - relevant repo files
+
+   Full `agent-queue show` should remain available for diagnosis, but it should not be the default worker bootstrap for already-approved execution.
+
+3. **Preflight before planning or execution**
+
+   Add a cheap validator that checks:
+
+   - Super PRD exists
+   - local plan path exists
+   - repo label exists and resolves to a local checkout
+   - required linked children exist for `8+` and `13+` tickets
+   - plan format is parseable
+   - execution is happening from the intended worktree
+
+   Failed preflight should print short, actionable errors instead of triggering model reasoning loops.
+
+4. **Hide giant commands by default**
+
+   `execute-ready` should show a compact preview by default:
+
+   - ticket
+   - repo
+   - branch
+   - worktree
+   - readiness
+   - start command hint
+
+   Full cmux command and handoff prompt should require a `--verbose` or `--debug` flag.
+
+5. **Cache and fingerprint context**
+
+   Store a lightweight manifest beside the local plan:
+
+   ```text
+   ~/.agent-queue/plans/<ticket-key>/manifest.json
+   ```
+
+   It should include Jira updated time, Super PRD hash, local plan hash, repo head SHA, and linked work item keys. If nothing changed, Queen should avoid rehydrating or re-summarizing context.
+
+6. **Use RTK and Caveman patterns**
+
+   RTK-style rule: pass structured state and tool results, not conversational history.
+
+   Caveman-style rule: keep agent-facing text terse, preserve exact identifiers, and avoid explanatory restatement.
+
+   For Queen Bot this means:
+
+   - structured JSON/markdown sections over prose transcripts
+   - compact summaries over raw Jira dumps
+   - exact preservation of ticket keys, paths, commands, branch names, URLs, and file names
+   - retrieval by pointer/path when possible instead of copying content into every prompt
+
+7. **Make second approval intentional**
+
+   The double-approval pattern is useful when risk or size calls for it. It should not appear because the worker forgot execution was already approved. For `5+`, `8+`, or high-risk work, Queen can intentionally require a plan-review checkpoint; for small leaf tickets it should avoid extra loops.
+
+Expected effect:
+
+- small approved execution: keep overhead closer to `3k-8k` tokens
+- medium execution: keep overhead closer to `8k-15k` tokens
+- avoid the `25k-60k` excess seen when format errors, full Jira rereads, and repeated execution attempts stack together
+
 ## Approval Checkpoints
 
 Execution approval should stay explicit.
