@@ -23,7 +23,7 @@ export function formatBriefExecutionContext(
   contract: ExecutionContract,
   options: { localPlanPath?: string; localPlanExists?: boolean } = {}
 ): string {
-  const planPath = options.localPlanPath ?? contract.plan.localPlanPath ?? resolveLocalPlanPath(ticket.key)
+  const planPath = options.localPlanPath ?? contract.plan.localPlanPath ?? resolveLocalPlanPath(ticket)
   const planExists = options.localPlanExists ?? existsSync(planPath)
   const planStatus = planExists ? 'ready' : 'missing'
   return [
@@ -76,6 +76,6 @@ export async function runContextCommand(args: string[], tickets: JiraTicket[]): 
   const result = buildExecutionContract(ticket)
   if (!result.ok) throw new Error(`Cannot build execution context for ${result.ticketKey}: ${result.reason}`)
 
-  const planPath = result.contract.plan.localPlanPath ?? resolveLocalPlanPath(ticket.key)
+  const planPath = result.contract.plan.localPlanPath ?? resolveLocalPlanPath(ticket)
   console.log(formatBriefExecutionContext(ticket, result.contract, { localPlanPath: planPath, localPlanExists: existsSync(planPath) }))
 }

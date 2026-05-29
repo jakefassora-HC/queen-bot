@@ -21,6 +21,7 @@ const ticket: JiraTicket = {
   }),
   storyPoints: 5,
   issueType: 'Story',
+  project: { key: 'AISOL', name: 'AI Solutions' },
   labels: ['repo:Codefied/human-road-warrior'],
   status: 'In Progress',
   repo: 'Codefied/human-road-warrior',
@@ -32,12 +33,12 @@ test('formatBriefExecutionContext prints compact execution packet without raw Ji
   const contract = buildExecutionContract(ticket)
   if (!contract.ok) throw new Error(contract.reason)
 
-  const output = formatBriefExecutionContext(ticket, contract.contract, { localPlanPath: localPlanPath(ticket.key, '/tmp/plans'), localPlanExists: true })
+  const output = formatBriefExecutionContext(ticket, contract.contract, { localPlanPath: localPlanPath(ticket, '/tmp/plans'), localPlanExists: true })
 
   expect(output).toContain('# Agent Q Context: AISOL-592')
   expect(output).toContain('repo: Codefied/human-road-warrior')
   expect(output).toContain('branch: agent/AISOL-592')
-  expect(output).toContain('local_plan: /tmp/plans/AISOL-592/plan.md')
+  expect(output).toContain('local_plan: /tmp/plans/AISOL/AISOL-592/plan.md')
   expect(output).toContain('local_plan_status: ready')
   expect(output).toContain('goal: Show all Sankey flow details.')
   expect(output).toContain('- All kicked-out reasons are visible.')
@@ -51,8 +52,8 @@ test('formatBriefExecutionContext marks missing local plans without hiding the e
   const contract = buildExecutionContract(ticket)
   if (!contract.ok) throw new Error(contract.reason)
 
-  const output = formatBriefExecutionContext(ticket, contract.contract, { localPlanPath: localPlanPath(ticket.key, '/tmp/plans'), localPlanExists: false })
+  const output = formatBriefExecutionContext(ticket, contract.contract, { localPlanPath: localPlanPath(ticket, '/tmp/plans'), localPlanExists: false })
 
-  expect(output).toContain('local_plan: /tmp/plans/AISOL-592/plan.md')
+  expect(output).toContain('local_plan: /tmp/plans/AISOL/AISOL-592/plan.md')
   expect(output).toContain('local_plan_status: missing')
 })

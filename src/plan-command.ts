@@ -38,7 +38,7 @@ export function buildPlanFromTicket(ticket: JiraTicket): JiraPlan {
     risks: ['Under-specified ticket can cause agent drift.'],
     autonomyLevel: 2,
     forbiddenActions: ['Do not merge.', 'Do not deploy.', 'Do not update Jira without approval.'],
-    localPlanPath: localPlanPath(ticket.key)
+    localPlanPath: localPlanPath(ticket)
   }
 }
 

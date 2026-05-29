@@ -12,13 +12,18 @@ const ticket: JiraTicket = {
   description: 'User story and acceptance criteria live in Jira.',
   storyPoints: 5,
   issueType: 'Story',
+  project: { key: 'AISOL', name: 'AI Solutions' },
   labels: ['repo:Codefied/human-road-warrior'],
   status: 'In Progress',
   repo: 'Codefied/human-road-warrior'
 }
 
-test('localPlanPath stores plans under a deterministic ticket directory', () => {
-  expect(localPlanPath('aisol-592', '/tmp/plans')).toBe('/tmp/plans/AISOL-592/plan.md')
+test('localPlanPath stores plans under a deterministic project and ticket directory', () => {
+  expect(localPlanPath(ticket, '/tmp/plans')).toBe('/tmp/plans/AISOL/AISOL-592/plan.md')
+})
+
+test('localPlanPath falls back to the ticket key prefix when Jira project is unavailable', () => {
+  expect(localPlanPath('aisol-592', '/tmp/plans')).toBe('/tmp/plans/AISOL/AISOL-592/plan.md')
 })
 
 test('localPlanPath rejects unsafe ticket keys', () => {
@@ -43,6 +48,6 @@ test('writeLocalPlan writes the local markdown plan and returns its path', () =>
 
   const writtenPath = writeLocalPlan(ticket, plan, root)
 
-  expect(writtenPath).toBe(path.join(root, 'AISOL-592', 'plan.md'))
+  expect(writtenPath).toBe(path.join(root, 'AISOL', 'AISOL-592', 'plan.md'))
   expect(readFileSync(writtenPath, 'utf8')).toContain('# AISOL-592 Agent Q Full Plan')
 })

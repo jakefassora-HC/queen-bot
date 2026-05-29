@@ -38,8 +38,10 @@ The Super PRD should be strong enough that Jake can understand the plan without 
 The detailed plan should live locally, keyed by Jira ticket:
 
 ```text
-~/.agent-queue/plans/<ticket-key>/plan.md
+~/.agent-queue/plans/<project-key>/<ticket-key>/plan.md
 ```
+
+The project key comes from Jira when available. If Jira does not provide a project object, Queen falls back to the issue-key prefix, so `AISOL-592` maps to `AISOL`.
 
 The local plan can be long. It can include code investigation notes, repo-specific file references, phase breakdowns, model critiques, and implementation detail that would make Jira hard to read.
 
@@ -172,7 +174,7 @@ Target fixes:
    Store a lightweight manifest beside the local plan:
 
    ```text
-   ~/.agent-queue/plans/<ticket-key>/manifest.json
+   ~/.agent-queue/plans/<project-key>/<ticket-key>/manifest.json
    ```
 
    It should include Jira updated time, Super PRD hash, local plan hash, repo head SHA, and linked work item keys. If nothing changed, Queen should avoid rehydrating or re-summarizing context.

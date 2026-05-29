@@ -13,8 +13,19 @@ export function normalizeTicketKey(ticketKey: string): string {
   return key
 }
 
-export function localPlanPath(ticketKey: string, root = DEFAULT_PLANS_DIR): string {
-  return path.join(root, normalizeTicketKey(ticketKey), 'plan.md')
+export function projectKeyForPlan(ticket: JiraTicket | string): string {
+  const ticketKey = normalizeTicketKey(typeof ticket === 'string' ? ticket : ticket.key)
+  const projectKey = typeof ticket === 'string' ? ticketKey.split('-')[0] : ticket.project?.key ?? ticketKey.split('-')[0]
+  const normalized = projectKey.trim().toUpperCase()
+  if (!/^[A-Z][A-Z0-9]+$/.test(normalized)) {
+    throw new Error(`Invalid Jira project key for local plan path: ${projectKey}`)
+  }
+  return normalized
+}
+
+export function localPlanPath(ticket: JiraTicket | string, root = DEFAULT_PLANS_DIR): string {
+  const ticketKey = normalizeTicketKey(typeof ticket === 'string' ? ticket : ticket.key)
+  return path.join(root, projectKeyForPlan(ticket), ticketKey, 'plan.md')
 }
 
 function bullets(items: string[]): string {
@@ -23,17 +34,19 @@ function bullets(items: string[]): string {
 
 export function renderLocalPlan(ticket: JiraTicket, plan: JiraPlan): string {
   const key = normalizeTicketKey(ticket.key)
+  const projectKey = projectKeyForPlan(ticket)
   return [
     `# ${key} Agent Q Full Plan`,
     '',
     '## Contract',
     '',
     `ticket: ${key}`,
+    `project: ${projectKey}`,
     `summary: ${ticket.summary}`,
     `status: ${ticket.status || 'unknown'}`,
     `repo: ${ticket.repo || 'none'}`,
     `autonomy: ${plan.autonomyLevel}`,
-    `local_plan: ${plan.localPlanPath || localPlanPath(key)}`,
+    `local_plan: ${plan.localPlanPath || localPlanPath(ticket)}`,
     '',
     '## Super PRD',
     '',
@@ -60,7 +73,7 @@ export function renderLocalPlan(ticket: JiraTicket, plan: JiraPlan): string {
 }
 
 export function writeLocalPlan(ticket: JiraTicket, plan: JiraPlan, root = DEFAULT_PLANS_DIR): string {
-  const filePath = localPlanPath(ticket.key, root)
+  const filePath = localPlanPath(ticket, root)
   mkdirSync(path.dirname(filePath), { recursive: true })
   writeFileSync(filePath, renderLocalPlan(ticket, { ...plan, localPlanPath: filePath }), 'utf8')
   return filePath
