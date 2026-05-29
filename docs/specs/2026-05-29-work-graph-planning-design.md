@@ -13,9 +13,9 @@ Jira tickets should usually be executable leaves.
 
 - `1-5 points`: executable ticket.
 - `8 points`: should have child tickets, phased work items, or linked execution tickets before running broad autonomy.
-- `13+ points`: should be treated as an initiative, epic, or parent ticket that must be split before execution.
+- `13+ points`: should sit at the top as initiative, epic, or parent-level work with linked child tickets or phased work items. The parent can remain open as the organizing ticket; execution should happen through the linked children.
 
-Large work should become linked smaller work, not a huge description.
+Large work should become linked smaller work, not a huge description. A `13+` parent should not hold execution detail beyond the Super PRD.
 
 ## Super PRD
 
@@ -30,6 +30,8 @@ The Jira description should stay compact and stable. It should include:
 - local plan path
 
 The description is the high-level contract. It should not become the full working plan.
+
+The Super PRD should be strong enough that Jake can understand the plan without opening the full local markdown every time. The local markdown exists for agents and deep review; the Jira description exists for fast human scanning and execution gating.
 
 ## Local Full Plan
 
@@ -81,6 +83,8 @@ The point is traceability: Jake should be able to see why work exists and how it
 
 ## Model Workflow
 
+This is a future loop, not a current implementation requirement. Queen Bot should not depend on Codex CLI until Jake has it installed and intentionally wires it in.
+
 Queen should be the persistent planning/control layer. Codex is the preferred control-plane author for plans because this workflow is being designed inside Codex and can stay local-first.
 
 Claude execution workspaces should read the Codex-authored Jira context and local full plan. For larger or riskier tickets, Claude should critique the plan before implementation.
@@ -106,7 +110,7 @@ Recommended checkpoint behavior:
 - `1-3 points`: one plan approval plus one execution approval is usually enough.
 - `5 points`: experiment; may need a lightweight model critique depending on risk.
 - `8+ points`: require linked child/phased work or an explicit plan review checkpoint.
-- `13+ points`: do not execute directly; split first.
+- `13+ points`: keep as top-level work with a Super PRD and linked children; do not execute directly from the parent.
 
 The double-approval pattern can stay available. It should be purposeful rather than accidental: use it when the ticket size, risk, or ambiguity calls for a second review pass.
 
@@ -125,4 +129,4 @@ The double-approval pattern can stay available. It should be purposeful rather t
 4. Add linked-work helpers for parent/child/follow-up relationships.
 5. Add comment templates for local plan revision summaries and Super PRD changes.
 6. Add optional Claude critique loop for `5+` or high-risk tickets.
-7. Add model routing policy for planner, reviewer, and executor roles.
+7. Add model routing policy for planner, reviewer, and executor roles after Codex CLI is available.

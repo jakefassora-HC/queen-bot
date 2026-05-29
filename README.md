@@ -157,7 +157,7 @@ Future Queen Bot planning should treat Jira as a work graph instead of a giant d
 
 - `1-5 point` tickets are executable leaf work.
 - `8 point` tickets should link to child tickets, phased work items, or related execution tickets.
-- `13+ point` tickets should become parent/initiative work and be split before execution.
+- `13+ point` tickets should sit at the top as parent/initiative work with linked child tickets or phased work items; execution should happen through the linked children.
 
 Jira descriptions should hold a compressed Super PRD: goal, acceptance criteria, implementation notes, verification, autonomy, forbidden actions, and local plan path. Full detailed plans should live locally under `~/.agent-queue/plans/<ticket-key>/plan.md` and be linked from Jira. Jira comments should hold proof, progress, review notes, model critique summaries, and audit notes when the local plan or Super PRD changes.
 
