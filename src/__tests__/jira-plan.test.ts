@@ -10,7 +10,8 @@ const plan: JiraPlan = {
   verification: ['Run markdown lint.', 'Check links manually.'],
   risks: ['Docs can go stale.'],
   autonomyLevel: 2,
-  forbiddenActions: ['Do not merge.', 'Do not deploy.']
+  forbiddenActions: ['Do not merge.', 'Do not deploy.'],
+  localPlanPath: '/tmp/plans/AISOL-465/plan.md'
 }
 
 test('renderJiraPlan writes a stable Agent Q plan section', () => {
@@ -18,6 +19,7 @@ test('renderJiraPlan writes a stable Agent Q plan section', () => {
 
   expect(text).toContain('## Agent Q Plan')
   expect(text).toContain('Autonomy Level: 2')
+  expect(text).toContain('Local Plan Path: /tmp/plans/AISOL-465/plan.md')
   expect(text).toContain('- Do not merge.')
 })
 
@@ -27,6 +29,7 @@ test('parseJiraPlan reads the rendered section', () => {
   expect(parsed?.ticketKey).toBe('AISOL-465')
   expect(parsed?.goal).toBe('Create onboarding handoff documentation.')
   expect(parsed?.autonomyLevel).toBe(2)
+  expect(parsed?.localPlanPath).toBe('/tmp/plans/AISOL-465/plan.md')
 })
 
 test('upsertJiraPlanSection replaces an existing Agent Q plan without duplicating it', () => {

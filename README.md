@@ -115,6 +115,11 @@ npm start -- context AISOL-465 --brief
 
 That packet includes the execution contract, Super PRD, linked work, and a pointer back to `agent-queue show <ticket-key>` for debugging. Claude uses Superpowers as the planning/TDD/debugging/verification protocol, then dispatches parallel agents for independent work inside the approved contract.
 
+The packet also includes:
+
+- `local_plan`: the detailed local markdown path for the ticket.
+- `local_plan_status`: `ready` when that file exists, `missing` when the Super PRD points to a plan that has not been written yet.
+
 Run `--start` from a terminal inside cmux. By default cmux only allows processes started inside cmux to control workspaces; running `--start` from macOS Terminal or a Claude session outside cmux can fail with `Access denied` or `TabManager not available`.
 
 Agent Queue does not require the newer `cmux new-workspace --name` flag; it creates the workspace with `--command` and renames it from inside cmux. If you intentionally change cmux socket access settings to allow external local processes, set `AGENT_QUEUE_ALLOW_EXTERNAL_CMUX=1` before running `--start`.
@@ -163,7 +168,7 @@ The draft flow borrows from:
 
 Queen Bot keeps prompts structured and compact so later execution agents do less re-reading. Approved execution now uses `agent-queue context <ticket> --brief` for worker handoff, and `execute-ready` hides giant cmux commands unless `--verbose` is requested.
 
-Future token reductions should make approved workers read local plan files in addition to compact execution packets. Preflight checks should catch missing plan format, repo labels, local plan paths, and linked child work before model loops start.
+`agent-queue plan <ticket> --write` writes the approved Super PRD to Jira and writes the full local plan to `~/.agent-queue/plans/<ticket-key>/plan.md`. Future token reductions should add manifest caching and stricter preflight checks for repo labels, local plan existence, and linked child work before model loops start.
 
 ## Roadmap: Work Graph Planning
 
@@ -173,7 +178,7 @@ Future Queen Bot planning should treat Jira as a work graph instead of a giant d
 - `8 point` tickets should link to child tickets, phased work items, or related execution tickets.
 - `13+ point` tickets should sit at the top as parent/initiative work with linked child tickets or phased work items; execution should happen through the linked children.
 
-Jira descriptions should hold a compressed Super PRD: goal, acceptance criteria, implementation notes, verification, autonomy, forbidden actions, and local plan path. Full detailed plans should live locally under `~/.agent-queue/plans/<ticket-key>/plan.md` and be linked from Jira. Jira comments should hold proof, progress, review notes, model critique summaries, and audit notes when the local plan or Super PRD changes.
+Jira descriptions hold a compressed Super PRD: goal, acceptance criteria, implementation notes, verification, autonomy, forbidden actions, and local plan path. Full detailed plans live locally under `~/.agent-queue/plans/<ticket-key>/plan.md` and are linked from Jira. Jira comments should hold proof, progress, review notes, model critique summaries, and audit notes when the local plan or Super PRD changes.
 
 See `docs/specs/2026-05-29-work-graph-planning-design.md`.
 

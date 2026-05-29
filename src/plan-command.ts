@@ -1,6 +1,7 @@
 import readline from 'readline'
 import { renderJiraPlan } from './jira-plan.js'
 import { updateTicketDescription, upsertTextToDescriptionAdf } from './jira.js'
+import { localPlanPath, writeLocalPlan } from './local-plan.js'
 import { resolveTicketSelection } from './queue-command.js'
 import type { JiraAdfDocument, JiraPlan, JiraTicket } from './types.js'
 
@@ -36,7 +37,8 @@ export function buildPlanFromTicket(ticket: JiraTicket): JiraPlan {
     verification: ['Run the smallest meaningful verification command before reporting done.'],
     risks: ['Under-specified ticket can cause agent drift.'],
     autonomyLevel: 2,
-    forbiddenActions: ['Do not merge.', 'Do not deploy.', 'Do not update Jira without approval.']
+    forbiddenActions: ['Do not merge.', 'Do not deploy.', 'Do not update Jira without approval.'],
+    localPlanPath: localPlanPath(ticket.key)
   }
 }
 
@@ -50,7 +52,9 @@ export async function writePlanWithApproval(ticket: JiraTicket, plan: JiraPlan):
   const answer = await prompt(`\nWrite this plan to ${ticket.key}? Type "${JIRA_PLAN_APPROVAL_PHRASE}" to approve: `)
   if (!hasJiraPlanApproval(answer)) return false
 
-  await updateTicketDescription(ticket.key, buildPlanDescriptionAdf(ticket, plan))
+  const writtenPath = writeLocalPlan(ticket, plan)
+  await updateTicketDescription(ticket.key, buildPlanDescriptionAdf(ticket, { ...plan, localPlanPath: writtenPath }))
+  console.log(`Local full plan: ${writtenPath}`)
   return true
 }
 

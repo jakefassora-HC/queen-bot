@@ -102,6 +102,7 @@ export interface JiraPlan {
   risks: string[]
   autonomyLevel: AutonomyLevel
   forbiddenActions: string[]
+  localPlanPath?: string
 }
 
 export interface ExecutionContract {

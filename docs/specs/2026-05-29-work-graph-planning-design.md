@@ -45,6 +45,12 @@ The local plan can be long. It can include code investigation notes, repo-specif
 
 The Super PRD should link to this local path. That path is for Jake and local agents; it is not expected to be readable by other Jira users.
 
+Implemented V3.2 behavior:
+
+- `agent-queue plan <ticket> --write` stores the approved local plan at this path after Jake types `APPROVE JIRA PLAN`.
+- `agent-queue context <ticket> --brief` prints both `local_plan` and `local_plan_status`.
+- Execution handoff tells workers to read the local plan only when `local_plan_status` is `ready`.
+
 ## Comments
 
 Jira comments are the audit trail, not the plan store.
@@ -123,7 +129,7 @@ Target fixes:
    agent-queue context AISOL-592 --brief
    ```
 
-   The brief packet should include the Super PRD, local plan path, repo, branch, worktree, linked child tickets, approval state, and forbidden actions. It should not dump every Jira field, every comment, or raw command previews.
+   The brief packet includes the Super PRD, local plan path, local plan status, repo, branch, worktree, linked child tickets, and forbidden actions. It should not dump every Jira field, every comment, or raw command previews.
 
 2. **Stop requiring full Jira rereads in execution workers**
 

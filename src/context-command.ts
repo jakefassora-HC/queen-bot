@@ -1,4 +1,6 @@
+import { existsSync } from 'fs'
 import { buildExecutionContract } from './execution-command.js'
+import { localPlanPath as resolveLocalPlanPath } from './local-plan.js'
 import { resolveTicketSelection } from './queue-command.js'
 import type { ExecutionContract, JiraTicket } from './types.js'
 
@@ -16,7 +18,14 @@ function linkedWorkLines(ticket: JiraTicket): string[] {
   return lines.length > 0 ? lines : ['- none']
 }
 
-export function formatBriefExecutionContext(ticket: JiraTicket, contract: ExecutionContract): string {
+export function formatBriefExecutionContext(
+  ticket: JiraTicket,
+  contract: ExecutionContract,
+  options: { localPlanPath?: string; localPlanExists?: boolean } = {}
+): string {
+  const planPath = options.localPlanPath ?? contract.plan.localPlanPath ?? resolveLocalPlanPath(ticket.key)
+  const planExists = options.localPlanExists ?? existsSync(planPath)
+  const planStatus = planExists ? 'ready' : 'missing'
   return [
     `# Agent Q Context: ${ticket.key}`,
     '',
@@ -28,7 +37,8 @@ export function formatBriefExecutionContext(ticket: JiraTicket, contract: Execut
     `branch: ${contract.branch}`,
     `worktree: ${contract.worktreePath}`,
     `autonomy: ${contract.autonomyLevel}`,
-    `local_plan: not yet configured`,
+    `local_plan: ${planPath}`,
+    `local_plan_status: ${planStatus}`,
     '',
     '## Super PRD',
     '',
@@ -66,5 +76,6 @@ export async function runContextCommand(args: string[], tickets: JiraTicket[]): 
   const result = buildExecutionContract(ticket)
   if (!result.ok) throw new Error(`Cannot build execution context for ${result.ticketKey}: ${result.reason}`)
 
-  console.log(formatBriefExecutionContext(ticket, result.contract))
+  const planPath = result.contract.plan.localPlanPath ?? resolveLocalPlanPath(ticket.key)
+  console.log(formatBriefExecutionContext(ticket, result.contract, { localPlanPath: planPath, localPlanExists: existsSync(planPath) }))
 }

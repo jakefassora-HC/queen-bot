@@ -1,6 +1,7 @@
 import { buildExecutionContract } from '../execution-command.js'
 import { formatBriefExecutionContext } from '../context-command.js'
 import { renderJiraPlan } from '../jira-plan.js'
+import { localPlanPath } from '../local-plan.js'
 import type { JiraTicket } from '../types.js'
 
 const ticket: JiraTicket = {
@@ -31,15 +32,27 @@ test('formatBriefExecutionContext prints compact execution packet without raw Ji
   const contract = buildExecutionContract(ticket)
   if (!contract.ok) throw new Error(contract.reason)
 
-  const output = formatBriefExecutionContext(ticket, contract.contract)
+  const output = formatBriefExecutionContext(ticket, contract.contract, { localPlanPath: localPlanPath(ticket.key, '/tmp/plans'), localPlanExists: true })
 
   expect(output).toContain('# Agent Q Context: AISOL-592')
   expect(output).toContain('repo: Codefied/human-road-warrior')
   expect(output).toContain('branch: agent/AISOL-592')
+  expect(output).toContain('local_plan: /tmp/plans/AISOL-592/plan.md')
+  expect(output).toContain('local_plan_status: ready')
   expect(output).toContain('goal: Show all Sankey flow details.')
   expect(output).toContain('- All kicked-out reasons are visible.')
   expect(output).toContain('- AISOL-601 Relates - Related Sankey cleanup')
   expect(output).toContain('For full Jira detail: agent-queue show AISOL-592')
   expect(output).not.toContain('## Comments')
   expect(output).not.toContain('Additional Jira Fields')
+})
+
+test('formatBriefExecutionContext marks missing local plans without hiding the expected path', () => {
+  const contract = buildExecutionContract(ticket)
+  if (!contract.ok) throw new Error(contract.reason)
+
+  const output = formatBriefExecutionContext(ticket, contract.contract, { localPlanPath: localPlanPath(ticket.key, '/tmp/plans'), localPlanExists: false })
+
+  expect(output).toContain('local_plan: /tmp/plans/AISOL-592/plan.md')
+  expect(output).toContain('local_plan_status: missing')
 })
