@@ -9,6 +9,7 @@ import type { ExecutionContract, JiraTicket } from './types.js'
 export interface ExecuteReadyArgs {
   selections: string[]
   start: boolean
+  verbose: boolean
 }
 
 export type ExecutionContractResult =
@@ -28,7 +29,7 @@ export function buildExecutionBranch(ticketKey: string): string {
 export function parseExecuteReadyArgs(args: string[]): ExecuteReadyArgs {
   const selections = args.filter(arg => !arg.startsWith('--'))
   if (selections.length === 0) throw new Error('Usage: agent-queue execute-ready <ticket-number-or-key...> [--start]')
-  return { selections, start: args.includes('--start') }
+  return { selections, start: args.includes('--start'), verbose: args.includes('--verbose') || args.includes('--debug') }
 }
 
 export function buildExecutionContract(ticket: JiraTicket): ExecutionContractResult {
@@ -63,7 +64,8 @@ export function buildExecutionContract(ticket: JiraTicket): ExecutionContractRes
 
 export function formatExecutionPreview(
   contracts: ExecutionContract[],
-  rejected: Array<{ ticketKey: string; reason: string }>
+  rejected: Array<{ ticketKey: string; reason: string }>,
+  options: { verbose?: boolean } = {}
 ): string {
   const lines = ['Queen Bot execution preview', '']
 
@@ -76,9 +78,17 @@ export function formatExecutionPreview(
       lines.push(`  branch: ${contract.branch}`)
       lines.push(`  worktree: ${contract.worktreePath}`)
       lines.push(`  autonomy: ${contract.autonomyLevel}`)
-      lines.push(`  cmux: ${formatCmuxExecutionCommand(contract)}`)
+      if (options.verbose) {
+        lines.push(`  cmux: ${formatCmuxExecutionCommand(contract)}`)
+      } else {
+        lines.push(`  context: agent-queue context ${contract.ticketKey} --brief`)
+      }
       lines.push('')
     })
+    if (!options.verbose) {
+      lines.push('Add --verbose to show the full cmux command.')
+      lines.push('')
+    }
   }
 
   if (rejected.length > 0) {
@@ -109,7 +119,7 @@ export async function runExecuteReadyCommand(args: string[], tickets: JiraTicket
   const contracts = results.flatMap(result => result.ok ? [result.contract] : [])
   const rejected = results.flatMap(result => result.ok ? [] : [{ ticketKey: result.ticketKey, reason: result.reason }])
 
-  console.log(formatExecutionPreview(contracts, rejected))
+  console.log(formatExecutionPreview(contracts, rejected, { verbose: parsed.verbose }))
   if (!parsed.start) return
   if (rejected.length > 0) throw new Error('Refusing to start while selected tickets are blocked.')
   if (!canStartCmuxFromEnv()) throw new Error(cmuxStartHelp())

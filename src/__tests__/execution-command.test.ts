@@ -36,8 +36,9 @@ test('buildExecutionBranch uses agent ticket branch', () => {
 })
 
 test('parseExecuteReadyArgs supports preview and start modes', () => {
-  expect(parseExecuteReadyArgs(['AISOL-465'])).toEqual({ selections: ['AISOL-465'], start: false })
-  expect(parseExecuteReadyArgs(['AISOL-465', '--start'])).toEqual({ selections: ['AISOL-465'], start: true })
+  expect(parseExecuteReadyArgs(['AISOL-465'])).toEqual({ selections: ['AISOL-465'], start: false, verbose: false })
+  expect(parseExecuteReadyArgs(['AISOL-465', '--start'])).toEqual({ selections: ['AISOL-465'], start: true, verbose: false })
+  expect(parseExecuteReadyArgs(['AISOL-465', '--verbose'])).toEqual({ selections: ['AISOL-465'], start: false, verbose: true })
 })
 
 test('execution approval requires exact phrase', () => {
@@ -97,7 +98,7 @@ test('buildExecutionContract rejects missing plan sections even when headings ex
   expect(result.reason).toContain('acceptance criteria')
 })
 
-test('formatExecutionPreview shows contracts and rejected tickets', () => {
+test('formatExecutionPreview is compact by default', () => {
   const ready = buildExecutionContract(plannedTicket)
   if (!ready.ok) throw new Error(ready.reason)
 
@@ -108,4 +109,16 @@ test('formatExecutionPreview shows contracts and rejected tickets', () => {
   expect(output).toContain('agent/AISOL-465')
   expect(output).toContain('AISOL-999')
   expect(output).toContain('missing plan')
+  expect(output).toContain('Add --verbose to show the full cmux command')
+  expect(output).not.toContain('claude --name')
+})
+
+test('formatExecutionPreview can show verbose cmux command when requested', () => {
+  const ready = buildExecutionContract(plannedTicket)
+  if (!ready.ok) throw new Error(ready.reason)
+
+  const output = formatExecutionPreview([ready.contract], [], { verbose: true })
+
+  expect(output).toContain('cmux:')
+  expect(output).toContain('claude --name')
 })

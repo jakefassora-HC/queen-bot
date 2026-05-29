@@ -38,9 +38,6 @@ export function buildClaudeHandoffPrompt(ticketKey: string, contract?: Execution
   const key = cmuxWorkspaceName(ticketKey)
   const lines = [
     `You are Agent Q for Jira ticket ${key}.`,
-    'Start by running:',
-    `cd ~/projects/agent-queue && agent-queue show ${key}`,
-    'Use that Jira output as source context in this Claude session.',
     'Execute only after the ticket has an approved Jira plan and autonomy level.',
     'Use an isolated worktree and branch for implementation.',
     'If the Jira plan is missing or weak, stop and improve Jira first.',
@@ -52,10 +49,16 @@ export function buildClaudeHandoffPrompt(ticketKey: string, contract?: Execution
   ]
 
   if (contract) {
+    lines.push('Start by running:')
+    lines.push(`cd ~/projects/agent-queue && agent-queue context ${key} --brief`)
+    lines.push('Use that compact execution packet as source context. If it includes a configured local plan path, read that file too. Do not dump full Jira unless debugging.')
     lines.push('Execution is already approved. After reading Jira context and sanity-checking the repo, give a concise implementation outline and begin implementation inside the approved contract without asking Jake to approve the plan again.')
     lines.push(`Approved execution contract: repo ${contract.repo}, branch ${contract.branch}, worktree ${contract.worktreePath}, autonomy level ${contract.autonomyLevel}.`)
     lines.push(`After reading Jira context, work in this directory: ${contract.worktreePath}.`)
   } else {
+    lines.push('Start by running:')
+    lines.push(`cd ~/projects/agent-queue && agent-queue show ${key}`)
+    lines.push('Use that Jira output as source context in this Claude session.')
     lines.push('After you understand the ticket, propose the plan and wait for Jake before implementing.')
   }
 

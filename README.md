@@ -93,6 +93,12 @@ Preview Jira-plan-backed execution workspaces:
 npm start -- execute-ready AISOL-465 AISOL-540
 ```
 
+By default, the preview is compact. It shows the ticket, repo, branch, worktree, autonomy level, and the brief context command the worker will read. Show the full cmux command only when debugging:
+
+```bash
+npm start -- execute-ready AISOL-465 AISOL-540 --verbose
+```
+
 Start approved execution workspaces:
 
 ```bash
@@ -101,7 +107,13 @@ npm start -- execute-ready AISOL-465 AISOL-540 --start
 
 Execution start requires every selected ticket to have a valid Agent Q plan, repo label, executable readiness score, and autonomy level `2` or `3`. It also requires typing `APPROVE EXECUTION`.
 
-Each cmux workspace is named by ticket key and opens an interactive Claude session with an Agent Q handoff prompt. Claude starts by reading `agent-queue show <ticket-key>` in that workspace, uses Superpowers as the planning/TDD/debugging/verification protocol, then dispatches parallel agents for independent work after Jake approves the plan and autonomy level.
+Each cmux workspace is named by ticket key and opens an interactive Claude session with an Agent Q handoff prompt. Approved execution workers start by reading a compact packet instead of dumping the full Jira ticket:
+
+```bash
+npm start -- context AISOL-465 --brief
+```
+
+That packet includes the execution contract, Super PRD, linked work, and a pointer back to `agent-queue show <ticket-key>` for debugging. Claude uses Superpowers as the planning/TDD/debugging/verification protocol, then dispatches parallel agents for independent work inside the approved contract.
 
 Run `--start` from a terminal inside cmux. By default cmux only allows processes started inside cmux to control workspaces; running `--start` from macOS Terminal or a Claude session outside cmux can fail with `Access denied` or `TabManager not available`.
 
@@ -149,9 +161,9 @@ The draft flow borrows from:
 - RTK: compact command and research output before it enters model context.
 - Caveman: terse output, compressed memory, and exact preservation of URLs, paths, commands, and code.
 
-Queen Bot keeps prompts structured and compact so later execution agents do less re-reading.
+Queen Bot keeps prompts structured and compact so later execution agents do less re-reading. Approved execution now uses `agent-queue context <ticket> --brief` for worker handoff, and `execute-ready` hides giant cmux commands unless `--verbose` is requested.
 
-Future token reductions should make approved workers read compact execution packets and local plan files instead of full Jira dumps. Execution previews should hide giant cmux commands unless `--verbose` is requested, and preflight checks should catch missing plan format, repo labels, local plan paths, and linked child work before model loops start.
+Future token reductions should make approved workers read local plan files in addition to compact execution packets. Preflight checks should catch missing plan format, repo labels, local plan paths, and linked child work before model loops start.
 
 ## Roadmap: Work Graph Planning
 
