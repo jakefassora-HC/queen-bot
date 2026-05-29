@@ -153,7 +153,23 @@ npm start -- proof --file proof.json --comment
 
 Proof comments require the ticket to be in the current Jira queue, reviewing the preview, and typing `APPROVE JIRA PROOF`.
 
-Plan revision comments use terse templates for the Jira audit trail. Local-plan-only revisions point to the local file instead of dumping the plan into Jira. Any future Jira write for those comments must use the exact phrase `APPROVE JIRA PLAN COMMENT`.
+Plan revision comments use neutral, terse templates and point to the local file instead of dumping the plan into Jira. They do not require a second approval phrase, but Queen refuses to write them unless the ticket is in the current queue and assigned to Jake/the configured Jira identity.
+
+```bash
+npm start -- plan-comment AISOL-592 \
+  --local-plan "/Users/jake/.agent-queue/plans/Codefied/human-road-warrior/AISOL-592/plan.md" \
+  --reason "Reviewer tightened verification." \
+  --change "Added Playwright smoke check."
+```
+
+If the Super PRD/Jira description changes, leave a short planning-contract note:
+
+```bash
+npm start -- plan-comment AISOL-592 \
+  --super-prd-change \
+  --reason "Repo inspection changed execution scope." \
+  --change "Updated verification."
+```
 
 Add research context:
 
@@ -169,7 +185,7 @@ The draft flow borrows from:
 - RTK: compact command and research output before it enters model context.
 - Caveman: terse output, compressed memory, and exact preservation of URLs, paths, commands, and code.
 
-Queen Bot keeps prompts structured and compact so later execution agents do less re-reading. Approved execution now uses `agent-queue context <ticket> --brief` for worker handoff, and `execute-ready` hides giant cmux commands unless `--verbose` is requested.
+Queen Bot keeps prompts structured and compact so later execution agents do less re-reading. Approved execution now uses `agent-queue context <ticket> --brief` for worker handoff, and `execute-ready` hides giant cmux commands unless `--verbose` is requested. Jira writes stay scoped: description writes and proof comments require explicit approval, while low-noise plan comments can write only after the Jake-owned ticket guard passes.
 
 `agent-queue plan <ticket> --write` writes the approved Super PRD to Jira and writes the full local plan under the repo project at `~/.agent-queue/plans/<repo-owner>/<repo-name>/<ticket-key>/plan.md`. Tickets without a repo label use a Jira holding area at `~/.agent-queue/plans/jira/<jira-project-key>/<ticket-key>/plan.md`. Execution preflight now blocks missing local plans, missing repo labels, direct `13+` execution, and `8+` work with no linked child work before model loops start.
 

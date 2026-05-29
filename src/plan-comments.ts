@@ -1,11 +1,5 @@
 import type { JiraTicket } from './types.js'
 
-export const JIRA_PLAN_COMMENT_APPROVAL_PHRASE = 'APPROVE JIRA PLAN COMMENT'
-
-export function hasPlanCommentApproval(answer: string): boolean {
-  return answer.trim() === JIRA_PLAN_COMMENT_APPROVAL_PHRASE
-}
-
 function bullets(items: string[]): string {
   return items.length ? items.map(item => `- ${item}`).join('\n') : '- none'
 }
@@ -17,7 +11,7 @@ export function formatLocalPlanRevisionComment(input: {
   changes: string[]
 }): string {
   return [
-    '## Agent Q Plan Revision',
+    '## Plan Revision',
     `Ticket: ${input.ticket.key}`,
     `Local Plan: ${input.localPlanPath}`,
     '',
@@ -35,7 +29,7 @@ export function formatSuperPrdChangeComment(input: {
   changes: string[]
 }): string {
   return [
-    '## Agent Q Super PRD Change',
+    '## Planning Contract Change',
     `Ticket: ${input.ticket.key}`,
     'Jira Description: updated',
     '',

@@ -14,6 +14,7 @@ import { formatQueue, formatTicketDetails, resolveTicketSelection } from './queu
 import { formatCmuxCommand } from './cmux.js'
 import { formatQueenDashboard, formatReadinessQueue } from './readiness-command.js'
 import { runPlanCommand } from './plan-command.js'
+import { runPlanCommentCommand } from './plan-comment-command.js'
 import { runProofCommand } from './proof.js'
 import { runExecuteReadyCommand } from './execution-command.js'
 import { runContextCommand } from './context-command.js'
@@ -144,6 +145,11 @@ export async function main(): Promise<void> {
 
   if (args[0] === 'plan') {
     await runPlanCommand(args.slice(1), tickets)
+    return
+  }
+
+  if (args[0] === 'plan-comment') {
+    await runPlanCommentCommand(args.slice(1), tickets)
     return
   }
 

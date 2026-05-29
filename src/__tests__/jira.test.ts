@@ -144,7 +144,7 @@ test('adfToPlainText preserves headings and list lines for Agent Q plans', () =>
 
 test('buildCommentBodyAdf preserves markdown headings and bullets', () => {
   const body = buildCommentBodyAdf([
-    '## Agent Q Plan Revision',
+    '## Plan Revision',
     'Ticket: AISOL-465',
     '',
     '### Changes',
@@ -152,7 +152,7 @@ test('buildCommentBodyAdf preserves markdown headings and bullets', () => {
     '- Kept Super PRD unchanged.'
   ].join('\n'))
 
-  expect(adfToPlainText(body)).toContain('## Agent Q Plan Revision')
+  expect(adfToPlainText(body)).toContain('## Plan Revision')
   expect(adfToPlainText(body)).toContain('- Added verification.')
 })
 

@@ -1,6 +1,8 @@
 import { readFile } from 'fs/promises'
 import readline from 'readline'
+import { getJiraConfig } from './config.js'
 import { commentOnTicket } from './jira.js'
+import { assertJiraWriteAllowedForTicket } from './jira-guard.js'
 import type { JiraTicket, ProofReport } from './types.js'
 
 export interface ProofArgs {
@@ -65,7 +67,7 @@ export function assertProofTicketInQueue(report: ProofReport, tickets: JiraTicke
 export async function runProofCommand(args: string[], tickets: JiraTicket[]): Promise<void> {
   const parsed = parseProofArgs(args)
   const report = JSON.parse(await readFile(parsed.file, 'utf8')) as ProofReport
-  assertProofTicketInQueue(report, tickets)
+  const ticket = assertProofTicketInQueue(report, tickets)
 
   const formatted = formatProofReport(report)
   console.log(formatted)
@@ -75,6 +77,7 @@ export async function runProofCommand(args: string[], tickets: JiraTicket[]): Pr
     return
   }
 
+  assertJiraWriteAllowedForTicket(ticket, { email: getJiraConfig().email })
   const answer = await prompt(`\nComment this proof on ${report.ticketKey}? Type "${JIRA_PROOF_APPROVAL_PHRASE}" to approve: `)
   if (!hasProofApproval(answer)) {
     console.log('Skipped Jira proof comment.')

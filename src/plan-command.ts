@@ -1,6 +1,8 @@
 import readline from 'readline'
+import { getJiraConfig } from './config.js'
 import { renderJiraPlan } from './jira-plan.js'
 import { updateTicketDescription, upsertTextToDescriptionAdf } from './jira.js'
+import { assertJiraWriteAllowedForTicket } from './jira-guard.js'
 import { localPlanPath, writeLocalPlan } from './local-plan.js'
 import { resolveTicketSelection } from './queue-command.js'
 import type { JiraAdfDocument, JiraPlan, JiraTicket } from './types.js'
@@ -52,6 +54,7 @@ export async function writePlanWithApproval(ticket: JiraTicket, plan: JiraPlan):
   const answer = await prompt(`\nWrite this plan to ${ticket.key}? Type "${JIRA_PLAN_APPROVAL_PHRASE}" to approve: `)
   if (!hasJiraPlanApproval(answer)) return false
 
+  assertJiraWriteAllowedForTicket(ticket, { email: getJiraConfig().email })
   const writtenPath = writeLocalPlan(ticket, plan)
   await updateTicketDescription(ticket.key, buildPlanDescriptionAdf(ticket, { ...plan, localPlanPath: writtenPath }))
   console.log(`Local full plan: ${writtenPath}`)

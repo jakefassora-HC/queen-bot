@@ -1,8 +1,6 @@
 import {
-  JIRA_PLAN_COMMENT_APPROVAL_PHRASE,
   formatLocalPlanRevisionComment,
-  formatSuperPrdChangeComment,
-  hasPlanCommentApproval
+  formatSuperPrdChangeComment
 } from '../plan-comments.js'
 import type { JiraTicket } from '../types.js'
 
@@ -17,13 +15,7 @@ const ticket: JiraTicket = {
   status: 'To Do'
 }
 
-test('plan comment approval requires exact phrase', () => {
-  expect(JIRA_PLAN_COMMENT_APPROVAL_PHRASE).toBe('APPROVE JIRA PLAN COMMENT')
-  expect(hasPlanCommentApproval('APPROVE JIRA PLAN COMMENT')).toBe(true)
-  expect(hasPlanCommentApproval('yes')).toBe(false)
-})
-
-test('formatLocalPlanRevisionComment points to local plan without dumping plan body', () => {
+test('formatLocalPlanRevisionComment is neutral and points to local plan without dumping plan body', () => {
   const output = formatLocalPlanRevisionComment({
     ticket,
     localPlanPath: '/Users/jake/.agent-queue/plans/owner/repo/AISOL-465/plan.md',
@@ -31,10 +23,11 @@ test('formatLocalPlanRevisionComment points to local plan without dumping plan b
     changes: ['Added Playwright smoke check.', 'Kept Super PRD unchanged.']
   })
 
-  expect(output).toContain('## Agent Q Plan Revision')
+  expect(output).toContain('## Plan Revision')
   expect(output).toContain('Ticket: AISOL-465')
   expect(output).toContain('Local Plan: /Users/jake/.agent-queue/plans/owner/repo/AISOL-465/plan.md')
   expect(output).toContain('- Added Playwright smoke check.')
+  expect(output).not.toContain('Agent Q')
   expect(output).not.toContain('## Super PRD')
 })
 
@@ -45,7 +38,8 @@ test('formatSuperPrdChangeComment explains Jira description changes', () => {
     changes: ['Updated acceptance criteria.', 'Updated verification.']
   })
 
-  expect(output).toContain('## Agent Q Super PRD Change')
+  expect(output).toContain('## Planning Contract Change')
   expect(output).toContain('Jira Description: updated')
   expect(output).toContain('- Updated acceptance criteria.')
+  expect(output).not.toContain('Agent Q')
 })

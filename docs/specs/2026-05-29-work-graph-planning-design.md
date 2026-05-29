@@ -231,12 +231,13 @@ The double-approval pattern can stay available. It should be purposeful rather t
 - Local full plans may contain repo-specific detail and should stay on Jake's machine.
 - Jira descriptions should contain the compressed Super PRD, not raw transcripts or secret-bearing logs.
 - Jira comments should summarize plan changes and proof without dumping sensitive local context.
+- Low-noise plan comments do not need an approval phrase, but must pass the Jake-owned ticket guard before any Jira write.
 - Model critiques should be treated as untrusted until Queen/Codex accepts them into the local plan or Jira description.
 
 ## Future Implementation Slices
 
 1. Add Super PRD rendering separate from full plan rendering.
-2. Add a first-class local-plan revision CLI command with `APPROVE JIRA PLAN COMMENT`.
+2. Extend plan-comment templates for progress and reviewer summaries, still guarded by current-queue ownership.
 3. Add linked-work creation helpers for parent/child/follow-up relationships.
 4. Add optional Claude critique loop for `5+` or high-risk tickets.
 5. Add manifest/cache work beside local plans.
