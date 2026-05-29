@@ -2,6 +2,7 @@ import { existsSync } from 'fs'
 import { buildExecutionContract } from './execution-command.js'
 import { localPlanPath as resolveLocalPlanPath } from './local-plan.js'
 import { resolveTicketSelection } from './queue-command.js'
+import { workGraphSummary } from './work-graph.js'
 import type { ExecutionContract, JiraTicket } from './types.js'
 
 function bulletList(items: string[]): string[] {
@@ -26,6 +27,7 @@ export function formatBriefExecutionContext(
   const planPath = options.localPlanPath ?? contract.plan.localPlanPath ?? resolveLocalPlanPath(ticket)
   const planExists = options.localPlanExists ?? existsSync(planPath)
   const planStatus = planExists ? 'ready' : 'missing'
+  const graph = workGraphSummary(ticket)
   return [
     `# Agent Q Context: ${ticket.key}`,
     '',
@@ -39,6 +41,8 @@ export function formatBriefExecutionContext(
     `autonomy: ${contract.autonomyLevel}`,
     `local_plan: ${planPath}`,
     `local_plan_status: ${planStatus}`,
+    `parent: ${graph.parent}`,
+    `story_point_policy: ${graph.storyPointPolicy}`,
     '',
     '## Super PRD',
     '',

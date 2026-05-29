@@ -57,6 +57,13 @@ Implemented V3.2 behavior:
 - `agent-queue context <ticket> --brief` prints both `local_plan` and `local_plan_status`.
 - Execution handoff tells workers to read the local plan only when `local_plan_status` is `ready`.
 
+Implemented V3.3-V3.5 behavior:
+
+- Execution preflight blocks missing local plans, missing repo labels, direct `13+` execution, and `8+` work with no linked child work.
+- The dashboard and compact context packet surface parent work, child/link counts, and story-point policy without writing to Jira.
+- Jira comment formatting preserves headings and bullets.
+- Plan revision comment templates are pointer-based and keep full local plan content out of Jira.
+
 ## Comments
 
 Jira comments are the audit trail, not the plan store.
@@ -149,7 +156,7 @@ Target fixes:
 
 3. **Preflight before planning or execution**
 
-   Add a cheap validator that checks:
+   A cheap validator checks:
 
    - Super PRD exists
    - local plan path exists
@@ -158,7 +165,7 @@ Target fixes:
    - plan format is parseable
    - execution is happening from the intended worktree
 
-   Failed preflight should print short, actionable errors instead of triggering model reasoning loops.
+   Failed preflight prints short, actionable errors instead of triggering model reasoning loops.
 
 4. **Hide giant commands by default**
 
@@ -228,10 +235,9 @@ The double-approval pattern can stay available. It should be purposeful rather t
 
 ## Future Implementation Slices
 
-1. Add local full-plan file creation and path linking.
-2. Add Super PRD rendering separate from full plan rendering.
-3. Add ticket sizing policy warnings for `8+` and `13+` work.
-4. Add linked-work helpers for parent/child/follow-up relationships.
-5. Add comment templates for local plan revision summaries and Super PRD changes.
-6. Add optional Claude critique loop for `5+` or high-risk tickets.
-7. Add model routing policy for planner, reviewer, and executor roles after Codex CLI is available.
+1. Add Super PRD rendering separate from full plan rendering.
+2. Add a first-class local-plan revision CLI command with `APPROVE JIRA PLAN COMMENT`.
+3. Add linked-work creation helpers for parent/child/follow-up relationships.
+4. Add optional Claude critique loop for `5+` or high-risk tickets.
+5. Add manifest/cache work beside local plans.
+6. Add model routing policy for planner, reviewer, and executor roles after Codex CLI is available.

@@ -105,7 +105,7 @@ Start approved execution workspaces:
 npm start -- execute-ready AISOL-465 AISOL-540 --start
 ```
 
-Execution start requires every selected ticket to have a valid Agent Q plan, repo label, executable readiness score, and autonomy level `2` or `3`. It also requires typing `APPROVE EXECUTION`.
+Execution start requires every selected ticket to have a valid Agent Q plan, repo label, local full plan file, executable readiness score, allowed work-graph size policy, and autonomy level `2` or `3`. It also requires typing `APPROVE EXECUTION`.
 
 Each cmux workspace is named by ticket key and opens an interactive Claude session with an Agent Q handoff prompt. Approved execution workers start by reading a compact packet instead of dumping the full Jira ticket:
 
@@ -119,6 +119,7 @@ The packet also includes:
 
 - `local_plan`: the detailed local markdown path for the ticket.
 - `local_plan_status`: `ready` when that file exists, `missing` when the Super PRD points to a plan that has not been written yet.
+- `parent` and `story_point_policy`: the compact work-graph policy for whether this should execute directly.
 
 Run `--start` from a terminal inside cmux. By default cmux only allows processes started inside cmux to control workspaces; running `--start` from macOS Terminal or a Claude session outside cmux can fail with `Access denied` or `TabManager not available`.
 
@@ -152,6 +153,8 @@ npm start -- proof --file proof.json --comment
 
 Proof comments require the ticket to be in the current Jira queue, reviewing the preview, and typing `APPROVE JIRA PROOF`.
 
+Plan revision comments use terse templates for the Jira audit trail. Local-plan-only revisions point to the local file instead of dumping the plan into Jira. Any future Jira write for those comments must use the exact phrase `APPROVE JIRA PLAN COMMENT`.
+
 Add research context:
 
 ```bash
@@ -168,7 +171,7 @@ The draft flow borrows from:
 
 Queen Bot keeps prompts structured and compact so later execution agents do less re-reading. Approved execution now uses `agent-queue context <ticket> --brief` for worker handoff, and `execute-ready` hides giant cmux commands unless `--verbose` is requested.
 
-`agent-queue plan <ticket> --write` writes the approved Super PRD to Jira and writes the full local plan under the repo project at `~/.agent-queue/plans/<repo-owner>/<repo-name>/<ticket-key>/plan.md`. Tickets without a repo label use a Jira holding area at `~/.agent-queue/plans/jira/<jira-project-key>/<ticket-key>/plan.md`. Future token reductions should add manifest caching and stricter preflight checks for repo labels, local plan existence, and linked child work before model loops start.
+`agent-queue plan <ticket> --write` writes the approved Super PRD to Jira and writes the full local plan under the repo project at `~/.agent-queue/plans/<repo-owner>/<repo-name>/<ticket-key>/plan.md`. Tickets without a repo label use a Jira holding area at `~/.agent-queue/plans/jira/<jira-project-key>/<ticket-key>/plan.md`. Execution preflight now blocks missing local plans, missing repo labels, direct `13+` execution, and `8+` work with no linked child work before model loops start.
 
 ## Roadmap: Work Graph Planning
 

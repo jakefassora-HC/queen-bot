@@ -399,6 +399,14 @@ export function appendTextToDescriptionAdf(
   }
 }
 
+export function buildCommentBodyAdf(text: string): JiraAdfDocument {
+  return {
+    type: 'doc',
+    version: 1,
+    content: plainTextToAdfBlocks(text)
+  }
+}
+
 function isHeadingNode(node: JiraAdfNode, headingText: string): boolean {
   return node.type === 'heading' && collectInlineText(node).trim() === headingText
 }
@@ -530,7 +538,7 @@ export async function commentOnTicket(ticketKey: string, text: string): Promise<
   const res = await fetch(`${config.baseUrl}/rest/api/3/issue/${ticketKey}/comment`, {
     method: 'POST',
     headers: { Authorization: authHeader(config.email), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ body: { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [textNode(text)] }] } })
+    body: JSON.stringify({ body: buildCommentBodyAdf(text) })
   })
   if (!res.ok) throw new Error(`Jira comment error ${res.status}: ${await res.text()}`)
 }

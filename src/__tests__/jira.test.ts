@@ -1,6 +1,7 @@
 import {
   adfToPlainText,
   appendTextToDescriptionAdf,
+  buildCommentBodyAdf,
   buildCreateIssuePayload,
   buildQueueJql,
   buildQueueSearchUrl,
@@ -139,6 +140,20 @@ test('adfToPlainText preserves headings and list lines for Agent Q plans', () =>
   })
 
   expect(text).toBe('## Agent Q Plan\nTicket: AISOL-465\n- Run tests')
+})
+
+test('buildCommentBodyAdf preserves markdown headings and bullets', () => {
+  const body = buildCommentBodyAdf([
+    '## Agent Q Plan Revision',
+    'Ticket: AISOL-465',
+    '',
+    '### Changes',
+    '- Added verification.',
+    '- Kept Super PRD unchanged.'
+  ].join('\n'))
+
+  expect(adfToPlainText(body)).toContain('## Agent Q Plan Revision')
+  expect(adfToPlainText(body)).toContain('- Added verification.')
 })
 
 test('parseTicket keeps story points nullable instead of inventing a size', () => {

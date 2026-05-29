@@ -30,7 +30,7 @@ const ticket: JiraTicket = {
 }
 
 test('formatBriefExecutionContext prints compact execution packet without raw Jira dump', () => {
-  const contract = buildExecutionContract(ticket)
+  const contract = buildExecutionContract(ticket, { localPlanExists: () => true, repoExists: () => true })
   if (!contract.ok) throw new Error(contract.reason)
 
   const output = formatBriefExecutionContext(ticket, contract.contract, { localPlanPath: localPlanPath(ticket, '/tmp/plans'), localPlanExists: true })
@@ -40,6 +40,8 @@ test('formatBriefExecutionContext prints compact execution packet without raw Ji
   expect(output).toContain('branch: agent/AISOL-592')
   expect(output).toContain('local_plan: /tmp/plans/Codefied/human-road-warrior/AISOL-592/plan.md')
   expect(output).toContain('local_plan_status: ready')
+  expect(output).toContain('parent: AISOL-97 Roadwarrior')
+  expect(output).toContain('story_point_policy: executable leaf work')
   expect(output).toContain('goal: Show all Sankey flow details.')
   expect(output).toContain('- All kicked-out reasons are visible.')
   expect(output).toContain('- AISOL-601 Relates - Related Sankey cleanup')
@@ -49,7 +51,7 @@ test('formatBriefExecutionContext prints compact execution packet without raw Ji
 })
 
 test('formatBriefExecutionContext marks missing local plans without hiding the expected path', () => {
-  const contract = buildExecutionContract(ticket)
+  const contract = buildExecutionContract(ticket, { localPlanExists: () => true, repoExists: () => true })
   if (!contract.ok) throw new Error(contract.reason)
 
   const output = formatBriefExecutionContext(ticket, contract.contract, { localPlanPath: localPlanPath(ticket, '/tmp/plans'), localPlanExists: false })
