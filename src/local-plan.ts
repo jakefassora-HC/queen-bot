@@ -13,19 +13,33 @@ export function normalizeTicketKey(ticketKey: string): string {
   return key
 }
 
-export function projectKeyForPlan(ticket: JiraTicket | string): string {
-  const ticketKey = normalizeTicketKey(typeof ticket === 'string' ? ticket : ticket.key)
-  const projectKey = typeof ticket === 'string' ? ticketKey.split('-')[0] : ticket.project?.key ?? ticketKey.split('-')[0]
-  const normalized = projectKey.trim().toUpperCase()
-  if (!/^[A-Z][A-Z0-9]+$/.test(normalized)) {
-    throw new Error(`Invalid Jira project key for local plan path: ${projectKey}`)
+function safePathSegment(value: string, label: string): string {
+  const segment = value.trim()
+  if (!/^[A-Za-z0-9._-]+$/.test(segment) || segment === '.' || segment === '..') {
+    throw new Error(`Invalid ${label} for local plan path: ${value}`)
   }
-  return normalized
+  return segment
+}
+
+export function projectPathForPlan(ticket: JiraTicket | string): string[] {
+  const ticketKey = normalizeTicketKey(typeof ticket === 'string' ? ticket : ticket.key)
+
+  if (typeof ticket !== 'string' && ticket.repo) {
+    const parts = ticket.repo.trim().replace(/\.git$/, '').split('/')
+    if (parts.length === 2) {
+      return [
+        safePathSegment(parts[0], 'repo owner'),
+        safePathSegment(parts[1], 'repo name')
+      ]
+    }
+  }
+
+  return ['jira', ticketKey.split('-')[0]]
 }
 
 export function localPlanPath(ticket: JiraTicket | string, root = DEFAULT_PLANS_DIR): string {
   const ticketKey = normalizeTicketKey(typeof ticket === 'string' ? ticket : ticket.key)
-  return path.join(root, projectKeyForPlan(ticket), ticketKey, 'plan.md')
+  return path.join(root, ...projectPathForPlan(ticket), ticketKey, 'plan.md')
 }
 
 function bullets(items: string[]): string {
@@ -34,14 +48,14 @@ function bullets(items: string[]): string {
 
 export function renderLocalPlan(ticket: JiraTicket, plan: JiraPlan): string {
   const key = normalizeTicketKey(ticket.key)
-  const projectKey = projectKeyForPlan(ticket)
+  const projectPath = projectPathForPlan(ticket).join('/')
   return [
     `# ${key} Agent Q Full Plan`,
     '',
     '## Contract',
     '',
     `ticket: ${key}`,
-    `project: ${projectKey}`,
+    `project: ${projectPath}`,
     `summary: ${ticket.summary}`,
     `status: ${ticket.status || 'unknown'}`,
     `repo: ${ticket.repo || 'none'}`,

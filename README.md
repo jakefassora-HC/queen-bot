@@ -168,7 +168,7 @@ The draft flow borrows from:
 
 Queen Bot keeps prompts structured and compact so later execution agents do less re-reading. Approved execution now uses `agent-queue context <ticket> --brief` for worker handoff, and `execute-ready` hides giant cmux commands unless `--verbose` is requested.
 
-`agent-queue plan <ticket> --write` writes the approved Super PRD to Jira and writes the full local plan to `~/.agent-queue/plans/<project-key>/<ticket-key>/plan.md`. Future token reductions should add manifest caching and stricter preflight checks for repo labels, local plan existence, and linked child work before model loops start.
+`agent-queue plan <ticket> --write` writes the approved Super PRD to Jira and writes the full local plan under the repo project at `~/.agent-queue/plans/<repo-owner>/<repo-name>/<ticket-key>/plan.md`. Tickets without a repo label use a Jira holding area at `~/.agent-queue/plans/jira/<jira-project-key>/<ticket-key>/plan.md`. Future token reductions should add manifest caching and stricter preflight checks for repo labels, local plan existence, and linked child work before model loops start.
 
 ## Roadmap: Work Graph Planning
 
@@ -178,7 +178,7 @@ Future Queen Bot planning should treat Jira as a work graph instead of a giant d
 - `8 point` tickets should link to child tickets, phased work items, or related execution tickets.
 - `13+ point` tickets should sit at the top as parent/initiative work with linked child tickets or phased work items; execution should happen through the linked children.
 
-Jira descriptions hold a compressed Super PRD: goal, acceptance criteria, implementation notes, verification, autonomy, forbidden actions, and local plan path. Full detailed plans live locally under `~/.agent-queue/plans/<project-key>/<ticket-key>/plan.md` and are linked from Jira. Jira comments should hold proof, progress, review notes, model critique summaries, and audit notes when the local plan or Super PRD changes.
+Jira descriptions hold a compressed Super PRD: goal, acceptance criteria, implementation notes, verification, autonomy, forbidden actions, and local plan path. Full detailed plans live locally under `~/.agent-queue/plans/<repo-owner>/<repo-name>/<ticket-key>/plan.md` and are linked from Jira. Jira comments should hold proof, progress, review notes, model critique summaries, and audit notes when the local plan or Super PRD changes.
 
 See `docs/specs/2026-05-29-work-graph-planning-design.md`.
 

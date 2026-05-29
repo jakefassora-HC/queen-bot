@@ -38,7 +38,7 @@ test('formatBriefExecutionContext prints compact execution packet without raw Ji
   expect(output).toContain('# Agent Q Context: AISOL-592')
   expect(output).toContain('repo: Codefied/human-road-warrior')
   expect(output).toContain('branch: agent/AISOL-592')
-  expect(output).toContain('local_plan: /tmp/plans/AISOL/AISOL-592/plan.md')
+  expect(output).toContain('local_plan: /tmp/plans/Codefied/human-road-warrior/AISOL-592/plan.md')
   expect(output).toContain('local_plan_status: ready')
   expect(output).toContain('goal: Show all Sankey flow details.')
   expect(output).toContain('- All kicked-out reasons are visible.')
@@ -54,6 +54,6 @@ test('formatBriefExecutionContext marks missing local plans without hiding the e
 
   const output = formatBriefExecutionContext(ticket, contract.contract, { localPlanPath: localPlanPath(ticket, '/tmp/plans'), localPlanExists: false })
 
-  expect(output).toContain('local_plan: /tmp/plans/AISOL/AISOL-592/plan.md')
+  expect(output).toContain('local_plan: /tmp/plans/Codefied/human-road-warrior/AISOL-592/plan.md')
   expect(output).toContain('local_plan_status: missing')
 })
