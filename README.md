@@ -151,6 +151,18 @@ The draft flow borrows from:
 
 Queen Bot keeps prompts structured and compact so later execution agents do less re-reading.
 
+## Roadmap: Work Graph Planning
+
+Future Queen Bot planning should treat Jira as a work graph instead of a giant document store.
+
+- `1-5 point` tickets are executable leaf work.
+- `8 point` tickets should link to child tickets, phased work items, or related execution tickets.
+- `13+ point` tickets should become parent/initiative work and be split before execution.
+
+Jira descriptions should hold a compressed Super PRD: goal, acceptance criteria, implementation notes, verification, autonomy, forbidden actions, and local plan path. Full detailed plans should live locally under `~/.agent-queue/plans/<ticket-key>/plan.md` and be linked from Jira. Jira comments should hold proof, progress, review notes, model critique summaries, and audit notes when the local plan or Super PRD changes.
+
+See `docs/specs/2026-05-29-work-graph-planning-design.md`.
+
 ## Repo Discovery
 
 Execution uses git worktrees. Before cloning, Queen Bot looks for an existing local checkout with a matching GitHub remote in:
