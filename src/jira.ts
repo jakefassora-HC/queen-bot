@@ -1,6 +1,7 @@
 import type { JiraAdfDocument, JiraAdfNode, JiraTicket } from './types.js'
 import type { TicketDraft } from './types.js'
 import type { JiraConfig } from './config.js'
+import type { JiraWritePermit } from './jira-write-policy.js'
 import { getJiraKey, requireJiraConfig } from './config.js'
 
 function authHeader(email: string): string {
@@ -489,7 +490,14 @@ export function buildCreateIssuePayload(projectKey: string, draft: TicketDraft):
   }
 }
 
-export async function createIssueFromDraft(projectKey: string, draft: TicketDraft): Promise<string> {
+function assertPermit(permit: JiraWritePermit, action: JiraWritePermit['action']): void {
+  if (permit.action !== action) {
+    throw new Error(`Jira write permit mismatch: expected ${action}, received ${permit.action}.`)
+  }
+}
+
+export async function createIssueFromDraft(projectKey: string, draft: TicketDraft, permit: JiraWritePermit): Promise<string> {
+  assertPermit(permit, 'create-ticket')
   const config = requireJiraConfig()
   const res = await fetch(`${config.baseUrl}/rest/api/3/issue`, {
     method: 'POST',
@@ -505,7 +513,8 @@ export async function createIssueFromDraft(projectKey: string, draft: TicketDraf
   return data.key
 }
 
-export async function updateTicketDescription(ticketKey: string, description: JiraAdfDocument): Promise<void> {
+export async function updateTicketDescription(ticketKey: string, description: JiraAdfDocument, permit: JiraWritePermit): Promise<void> {
+  assertPermit(permit, 'update-description')
   const config = requireJiraConfig()
   const res = await fetch(`${config.baseUrl}/rest/api/3/issue/${ticketKey}`, {
     method: 'PUT',
@@ -519,7 +528,8 @@ export async function updateTicketDescription(ticketKey: string, description: Ji
   if (!res.ok) throw new Error(`Jira update issue error ${res.status}: ${await res.text()}`)
 }
 
-export async function transitionTicket(ticketKey: string, statusName: 'In Progress' | 'Done'): Promise<void> {
+export async function transitionTicket(ticketKey: string, statusName: 'In Progress' | 'Done', permit: JiraWritePermit): Promise<void> {
+  assertPermit(permit, 'transition')
   const config = requireJiraConfig()
   const transUrl = `${config.baseUrl}/rest/api/3/issue/${ticketKey}/transitions`
   const transRes = await fetch(transUrl, { headers: { Authorization: authHeader(config.email), Accept: 'application/json' } })
@@ -533,7 +543,8 @@ export async function transitionTicket(ticketKey: string, statusName: 'In Progre
   })
 }
 
-export async function commentOnTicket(ticketKey: string, text: string): Promise<void> {
+export async function commentOnTicket(ticketKey: string, text: string, permit: JiraWritePermit): Promise<void> {
+  assertPermit(permit, 'comment')
   const config = requireJiraConfig()
   const res = await fetch(`${config.baseUrl}/rest/api/3/issue/${ticketKey}/comment`, {
     method: 'POST',

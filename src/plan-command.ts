@@ -2,7 +2,7 @@ import readline from 'readline'
 import { getJiraConfig } from './config.js'
 import { renderJiraPlan } from './jira-plan.js'
 import { updateTicketDescription, upsertTextToDescriptionAdf } from './jira.js'
-import { assertJiraWriteAllowedForTicket } from './jira-guard.js'
+import { assertJiraWritePolicy } from './jira-write-policy.js'
 import { localPlanPath, writeLocalPlan } from './local-plan.js'
 import { resolveTicketSelection } from './queue-command.js'
 import type { JiraAdfDocument, JiraPlan, JiraTicket } from './types.js'
@@ -48,15 +48,15 @@ export function buildPlanDescriptionAdf(ticket: JiraTicket, plan: JiraPlan): Jir
   return upsertTextToDescriptionAdf(ticket.descriptionAdf, renderJiraPlan(plan), 'Agent Q Plan')
 }
 
-export async function writePlanWithApproval(ticket: JiraTicket, plan: JiraPlan): Promise<boolean> {
+export async function writePlanWithApproval(ticket: JiraTicket, plan: JiraPlan, tickets?: JiraTicket[]): Promise<boolean> {
   const rendered = renderJiraPlan(plan)
   console.log(rendered)
   const answer = await prompt(`\nWrite this plan to ${ticket.key}? Type "${JIRA_PLAN_APPROVAL_PHRASE}" to approve: `)
   if (!hasJiraPlanApproval(answer)) return false
 
-  assertJiraWriteAllowedForTicket(ticket, { email: getJiraConfig().email })
+  const permit = assertJiraWritePolicy({ action: 'update-description', ticket, tickets, email: getJiraConfig().email })
   const writtenPath = writeLocalPlan(ticket, plan)
-  await updateTicketDescription(ticket.key, buildPlanDescriptionAdf(ticket, { ...plan, localPlanPath: writtenPath }))
+  await updateTicketDescription(ticket.key, buildPlanDescriptionAdf(ticket, { ...plan, localPlanPath: writtenPath }), permit)
   console.log(`Local full plan: ${writtenPath}`)
   return true
 }
@@ -73,6 +73,6 @@ export async function runPlanCommand(args: string[], tickets: JiraTicket[]): Pro
     return
   }
 
-  const wrote = await writePlanWithApproval(ticket, plan)
+  const wrote = await writePlanWithApproval(ticket, plan, tickets)
   console.log(wrote ? `Wrote Agent Q plan to ${ticket.key}.` : 'Skipped Jira plan write.')
 }

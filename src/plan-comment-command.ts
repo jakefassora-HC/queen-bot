@@ -1,6 +1,6 @@
 import { getJiraConfig } from './config.js'
 import { commentOnTicket } from './jira.js'
-import { assertJiraWriteAllowedForTicket } from './jira-guard.js'
+import { assertJiraWritePolicy } from './jira-write-policy.js'
 import {
   formatLocalPlanRevisionComment,
   formatSuperPrdChangeComment
@@ -71,7 +71,7 @@ export async function runPlanCommentCommand(args: string[], tickets: JiraTicket[
   const ticket = resolveTicketSelection(tickets, parsed.selection)
   if (!ticket) throw new Error(`Ticket not found in current queue: ${parsed.selection}`)
 
-  assertJiraWriteAllowedForTicket(ticket, { email: getJiraConfig().email })
+  const permit = assertJiraWritePolicy({ action: 'comment', ticket, tickets, email: getJiraConfig().email })
 
   const comment = parsed.superPrdChange
     ? formatSuperPrdChangeComment({
@@ -87,6 +87,6 @@ export async function runPlanCommentCommand(args: string[], tickets: JiraTicket[
       })
 
   console.log(comment)
-  await commentOnTicket(ticket.key, comment)
+  await commentOnTicket(ticket.key, comment, permit)
   console.log(`Commented planning note on ${ticket.key}.`)
 }

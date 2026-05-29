@@ -47,15 +47,19 @@ The project key is the code project, not the Jira project. Queen gets it from th
 ~/.agent-queue/plans/jira/<jira-project-key>/<ticket-key>/plan.md
 ```
 
-The local plan can be long. It can include code investigation notes, repo-specific file references, phase breakdowns, model critiques, and implementation detail that would make Jira hard to read.
+The local plan can be long. It can include code investigation notes, repo-specific file references, phase breakdowns, model critiques, and implementation detail that would make Jira hard to read. It is one editable markdown file per ticket, not a version folder. If the plan changes, update `plan.md` and leave a brief Jira comment when the change matters.
 
 The Super PRD should link to this local path. That path is for Jake and local agents; it is not expected to be readable by other Jira users.
 
-Implemented V3.2 behavior:
+Implemented simple V3.2 behavior:
 
 - `agent-queue plan <ticket> --write` stores the approved local plan at this path after Jake types `APPROVE JIRA PLAN`.
-- `agent-queue context <ticket> --brief` prints both `local_plan` and `local_plan_status`.
+- `agent-queue context <ticket> --brief` prints a compact receipt with `local_plan` and `local_plan_status`.
+- `agent-queue context <ticket> --standard` adds the Super PRD and linked work.
+- `agent-queue context <ticket> --deep` is the explicit full-detail mode.
 - Execution handoff tells workers to read the local plan only when `local_plan_status` is `ready`.
+- Execution contracts carry an engine name: `claude`, `codex`, `ruflo`, or `manual`.
+- A tiny `manifest.json` beside `plan.md` records current execution state only: ticket, repo, branch, worktree, engine, status, and plan path.
 
 Implemented V3.3-V3.5 behavior:
 
@@ -180,15 +184,15 @@ Target fixes:
 
    Full cmux command and handoff prompt should require a `--verbose` or `--debug` flag.
 
-5. **Cache and fingerprint context**
+5. **Track current execution state without local paperwork**
 
-   Store a lightweight manifest beside the local plan:
+   Store a tiny manifest beside the local plan:
 
    ```text
    ~/.agent-queue/plans/<repo-owner>/<repo-name>/<ticket-key>/manifest.json
    ```
 
-   It should include Jira updated time, Super PRD hash, local plan hash, repo head SHA, and linked work item keys. If nothing changed, Queen should avoid rehydrating or re-summarizing context.
+   It should include only what helps Jake and Queen avoid losing the thread: ticket, repo, branch, worktree, engine, status, and plan path. Jira comments are the visible audit trail for meaningful plan/progress/proof changes.
 
 6. **Use RTK and Caveman patterns**
 
@@ -232,13 +236,12 @@ The double-approval pattern can stay available. It should be purposeful rather t
 - Jira descriptions should contain the compressed Super PRD, not raw transcripts or secret-bearing logs.
 - Jira comments should summarize plan changes and proof without dumping sensitive local context.
 - Low-noise plan comments do not need an approval phrase, but must pass the Jake-owned ticket guard before any Jira write.
+- All Jira write paths should pass through the central write policy before calling Jira APIs.
 - Model critiques should be treated as untrusted until Queen/Codex accepts them into the local plan or Jira description.
 
 ## Future Implementation Slices
 
-1. Add Super PRD rendering separate from full plan rendering.
-2. Extend plan-comment templates for progress and reviewer summaries, still guarded by current-queue ownership.
-3. Add linked-work creation helpers for parent/child/follow-up relationships.
-4. Add optional Claude critique loop for `5+` or high-risk tickets.
-5. Add manifest/cache work beside local plans.
-6. Add model routing policy for planner, reviewer, and executor roles after Codex CLI is available.
+1. Add linked-work creation helpers for parent/child/follow-up relationships.
+2. Extend plan-comment templates for progress and reviewer summaries, still guarded by central write policy.
+3. Add optional Claude critique loop for `5+` or high-risk tickets.
+4. Wire Codex, Ruflo, and manual engines after their local CLIs/workflows are intentionally configured.

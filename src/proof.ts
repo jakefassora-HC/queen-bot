@@ -2,7 +2,7 @@ import { readFile } from 'fs/promises'
 import readline from 'readline'
 import { getJiraConfig } from './config.js'
 import { commentOnTicket } from './jira.js'
-import { assertJiraWriteAllowedForTicket } from './jira-guard.js'
+import { assertJiraWritePolicy } from './jira-write-policy.js'
 import type { JiraTicket, ProofReport } from './types.js'
 
 export interface ProofArgs {
@@ -77,13 +77,13 @@ export async function runProofCommand(args: string[], tickets: JiraTicket[]): Pr
     return
   }
 
-  assertJiraWriteAllowedForTicket(ticket, { email: getJiraConfig().email })
+  const permit = assertJiraWritePolicy({ action: 'comment', ticket, tickets, email: getJiraConfig().email })
   const answer = await prompt(`\nComment this proof on ${report.ticketKey}? Type "${JIRA_PROOF_APPROVAL_PHRASE}" to approve: `)
   if (!hasProofApproval(answer)) {
     console.log('Skipped Jira proof comment.')
     return
   }
 
-  await commentOnTicket(report.ticketKey, formatted)
+  await commentOnTicket(report.ticketKey, formatted, permit)
   console.log(`Commented Agent Q proof on ${report.ticketKey}.`)
 }

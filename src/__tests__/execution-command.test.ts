@@ -48,9 +48,10 @@ test('buildExecutionBranch uses agent ticket branch', () => {
 })
 
 test('parseExecuteReadyArgs supports preview and start modes', () => {
-  expect(parseExecuteReadyArgs(['AISOL-465'])).toEqual({ selections: ['AISOL-465'], start: false, verbose: false })
-  expect(parseExecuteReadyArgs(['AISOL-465', '--start'])).toEqual({ selections: ['AISOL-465'], start: true, verbose: false })
-  expect(parseExecuteReadyArgs(['AISOL-465', '--verbose'])).toEqual({ selections: ['AISOL-465'], start: false, verbose: true })
+  expect(parseExecuteReadyArgs(['AISOL-465'])).toEqual({ selections: ['AISOL-465'], start: false, verbose: false, engine: 'claude' })
+  expect(parseExecuteReadyArgs(['AISOL-465', '--start'])).toEqual({ selections: ['AISOL-465'], start: true, verbose: false, engine: 'claude' })
+  expect(parseExecuteReadyArgs(['AISOL-465', '--verbose'])).toEqual({ selections: ['AISOL-465'], start: false, verbose: true, engine: 'claude' })
+  expect(parseExecuteReadyArgs(['AISOL-465', '--engine', 'codex'])).toEqual({ selections: ['AISOL-465'], start: false, verbose: false, engine: 'codex' })
 })
 
 test('execution approval requires exact phrase', () => {
@@ -67,6 +68,7 @@ test('buildExecutionContract requires a ready Agent Q plan and repo', () => {
   expect(result.contract.ticketKey).toBe('AISOL-465')
   expect(result.contract.branch).toBe('agent/AISOL-465')
   expect(result.contract.repo).toBe('jakefassora-HC/queen-bot')
+  expect(result.contract.engine).toBe('claude')
 })
 
 test('buildExecutionContract rejects missing plans', () => {
@@ -148,6 +150,7 @@ test('formatExecutionPreview is compact by default', () => {
 
   expect(output).toContain('Queen Bot execution preview')
   expect(output).toContain('AISOL-465')
+  expect(output).toContain('engine: claude')
   expect(output).toContain('agent/AISOL-465')
   expect(output).toContain('AISOL-999')
   expect(output).toContain('missing plan')

@@ -1,6 +1,8 @@
 import { readFile } from 'fs/promises'
 import readline from 'readline'
+import { getJiraConfig } from './config.js'
 import { createIssueFromDraft } from './jira.js'
+import { assertJiraWritePolicy } from './jira-write-policy.js'
 import { runClaude } from './plan.js'
 import {
   buildTicketDraftPrompt,
@@ -101,8 +103,16 @@ export async function runDraftCommand(args: string[]): Promise<void> {
     return
   }
 
+  const config = getJiraConfig()
+  const permit = assertJiraWritePolicy({
+    action: 'create-ticket',
+    projectKey: parsed.projectKey,
+    configuredProject: config.project,
+    email: config.email
+  })
+
   for (const draft of drafts) {
-    const key = await createIssueFromDraft(parsed.projectKey, draft)
+    const key = await createIssueFromDraft(parsed.projectKey, draft, permit)
     console.log(`Created ${key}: ${draft.summary}`)
   }
 }

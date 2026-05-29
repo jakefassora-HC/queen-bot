@@ -59,6 +59,7 @@ test('buildCmuxExecutionWorkspaceArgs starts in the execution worktree', () => {
     repo: 'jakefassora-HC/queen-bot',
     branch: 'agent/AISOL-465',
     worktreePath: '/tmp/.agent-worktrees/AISOL-465',
+    engine: 'claude',
     autonomyLevel: 2,
     approvedAt: 'pending',
     plan: {
@@ -86,6 +87,7 @@ test('execution handoff does not ask for another planning approval after approva
     repo: 'jakefassora-HC/queen-bot',
     branch: 'agent/AISOL-465',
     worktreePath: '/tmp/.agent-worktrees/AISOL-465',
+    engine: 'claude',
     autonomyLevel: 2,
     approvedAt: '2026-05-28T00:00:00.000Z',
     plan: {

@@ -1,16 +1,19 @@
 import readline from 'readline'
+import { parseExecutionEngine } from './execution-engine.js'
 import { parseJiraPlan } from './jira-plan.js'
 import { preflightExecutionTicket, type PreflightMessage, type PreflightOptions } from './preflight.js'
 import { scoreTicketReadiness } from './readiness.js'
 import { resolveTicketSelection } from './queue-command.js'
 import { canStartCmuxFromEnv, cmuxStartHelp, formatCmuxExecutionCommand, openCmuxExecutionWorkspace } from './cmux.js'
 import { branchName, prepareExecutionWorktree, repoLocalPath, worktreePath } from './worktree.js'
-import type { ExecutionContract, JiraTicket } from './types.js'
+import { writeRunManifest } from './run-manifest.js'
+import type { ExecutionContract, ExecutionEngine, JiraTicket } from './types.js'
 
 export interface ExecuteReadyArgs {
   selections: string[]
   start: boolean
   verbose: boolean
+  engine: ExecutionEngine
 }
 
 export type ExecutionContractResult =
@@ -28,12 +31,21 @@ export function buildExecutionBranch(ticketKey: string): string {
 }
 
 export function parseExecuteReadyArgs(args: string[]): ExecuteReadyArgs {
-  const selections = args.filter(arg => !arg.startsWith('--'))
+  const engineIndex = args.indexOf('--engine')
+  const engine = parseExecutionEngine(engineIndex === -1 ? undefined : args[engineIndex + 1])
+  const selections = args.filter((arg, index) => {
+    if (arg.startsWith('--')) return false
+    return engineIndex === -1 || index !== engineIndex + 1
+  })
   if (selections.length === 0) throw new Error('Usage: agent-queue execute-ready <ticket-number-or-key...> [--start]')
-  return { selections, start: args.includes('--start'), verbose: args.includes('--verbose') || args.includes('--debug') }
+  return { selections, start: args.includes('--start'), verbose: args.includes('--verbose') || args.includes('--debug'), engine }
 }
 
-export function buildExecutionContract(ticket: JiraTicket, preflightOptions: PreflightOptions = {}): ExecutionContractResult {
+export function buildExecutionContract(
+  ticket: JiraTicket,
+  preflightOptions: PreflightOptions = {},
+  engine: ExecutionEngine = 'claude'
+): ExecutionContractResult {
   const plan = parseJiraPlan(ticket.description)
   if (!plan) return { ok: false, ticketKey: ticket.key, reason: 'missing Agent Q Plan', fix: `agent-queue plan ${ticket.key} --write` }
   if (plan.ticketKey !== ticket.key) return { ok: false, ticketKey: ticket.key, reason: `Agent Q Plan ticket mismatch: ${plan.ticketKey}` }
@@ -63,6 +75,7 @@ export function buildExecutionContract(ticket: JiraTicket, preflightOptions: Pre
       repo: ticket.repo,
       branch: buildExecutionBranch(ticket.key),
       worktreePath: worktreePath(ticket.key, repoPath),
+      engine,
       autonomyLevel: plan.autonomyLevel,
       approvedAt: 'pending'
     },
@@ -83,6 +96,7 @@ export function formatExecutionPreview(
     contracts.forEach(contract => {
       lines.push(`- [ ] ${contract.ticketKey}`)
       lines.push(`  repo: ${contract.repo}`)
+      lines.push(`  engine: ${contract.engine}`)
       lines.push(`  branch: ${contract.branch}`)
       lines.push(`  worktree: ${contract.worktreePath}`)
       lines.push(`  autonomy: ${contract.autonomyLevel}`)
@@ -135,7 +149,7 @@ export async function runExecuteReadyCommand(args: string[], tickets: JiraTicket
   const results = parsed.selections.map(selection => {
     const ticket = resolveTicketSelection(tickets, selection)
     if (!ticket) return { ok: false as const, ticketKey: selection, reason: 'ticket not found in current queue' }
-    return buildExecutionContract(ticket)
+    return buildExecutionContract(ticket, {}, parsed.engine)
   })
   const contracts = results.flatMap(result => result.ok ? [result.contract] : [])
   const rejected = results.flatMap(result => result.ok ? [] : [{ ticketKey: result.ticketKey, reason: result.reason, fix: result.fix }])
@@ -144,6 +158,9 @@ export async function runExecuteReadyCommand(args: string[], tickets: JiraTicket
   console.log(formatExecutionPreview(contracts, rejected, { verbose: parsed.verbose, warnings }))
   if (!parsed.start) return
   if (rejected.length > 0) throw new Error('Refusing to start while selected tickets are blocked.')
+  if (parsed.engine !== 'claude') {
+    throw new Error(`Execution engine ${parsed.engine} is not implemented for cmux start yet. Use --engine claude or run this ticket manually.`)
+  }
   if (!canStartCmuxFromEnv()) throw new Error(cmuxStartHelp())
 
   const answer = await prompt(`\nOpen ${contracts.length} execution workspaces? Type "${EXECUTION_APPROVAL_PHRASE}" to approve: `)
@@ -154,7 +171,9 @@ export async function runExecuteReadyCommand(args: string[], tickets: JiraTicket
 
   for (const contract of contracts) {
     const prepared = prepareExecutionWorktree(contract)
-    await openCmuxExecutionWorkspace({ ...contract, worktreePath: prepared.worktreePath, approvedAt: new Date().toISOString() })
+    const approvedContract = { ...contract, worktreePath: prepared.worktreePath, approvedAt: new Date().toISOString() }
+    writeRunManifest(approvedContract, { status: 'running', startedAt: approvedContract.approvedAt })
+    await openCmuxExecutionWorkspace(approvedContract)
     console.log(`Opened execution workspace ${contract.ticketKey}`)
   }
 }

@@ -91,6 +91,10 @@ export interface TicketReadiness {
 }
 
 export type AutonomyLevel = 0 | 1 | 2 | 3 | 4
+export type ExecutionEngine = 'claude' | 'codex' | 'ruflo' | 'manual'
+export type ContextMode = 'brief' | 'standard' | 'deep'
+export type JiraWriteAction = 'comment' | 'update-description' | 'create-ticket' | 'transition' | 'link-issue'
+export type RunManifestStatus = 'pending' | 'running' | 'done' | 'failed'
 
 export interface JiraPlan {
   ticketKey: string
@@ -111,8 +115,21 @@ export interface ExecutionContract {
   repo: string
   branch: string
   worktreePath: string
+  engine: ExecutionEngine
   autonomyLevel: AutonomyLevel
   approvedAt: string
+}
+
+export interface RunManifest {
+  ticketKey: string
+  repo: string
+  branch: string
+  worktreePath: string
+  engine: ExecutionEngine
+  status: RunManifestStatus
+  planPath: string
+  allowedWrites: JiraWriteAction[]
+  startedAt: string
 }
 
 export interface ProofReport {

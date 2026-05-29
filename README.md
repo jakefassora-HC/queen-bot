@@ -185,9 +185,17 @@ The draft flow borrows from:
 - RTK: compact command and research output before it enters model context.
 - Caveman: terse output, compressed memory, and exact preservation of URLs, paths, commands, and code.
 
-Queen Bot keeps prompts structured and compact so later execution agents do less re-reading. Approved execution now uses `agent-queue context <ticket> --brief` for worker handoff, and `execute-ready` hides giant cmux commands unless `--verbose` is requested. Jira writes stay scoped: description writes and proof comments require explicit approval, while low-noise plan comments can write only after the Jake-owned ticket guard passes.
+Queen Bot keeps prompts structured and compact so later execution agents do less re-reading. Approved execution now uses `agent-queue context <ticket> --brief` for worker handoff, and `execute-ready` hides giant cmux commands unless `--verbose` is requested. Jira writes stay scoped through one write policy: description writes and proof comments require explicit approval, while low-noise plan comments can write only after the Jake-owned ticket guard passes.
 
 `agent-queue plan <ticket> --write` writes the approved Super PRD to Jira and writes the full local plan under the repo project at `~/.agent-queue/plans/<repo-owner>/<repo-name>/<ticket-key>/plan.md`. Tickets without a repo label use a Jira holding area at `~/.agent-queue/plans/jira/<jira-project-key>/<ticket-key>/plan.md`. Execution preflight now blocks missing local plans, missing repo labels, direct `13+` execution, and `8+` work with no linked child work before model loops start.
+
+Context output has three modes:
+
+- `agent-queue context AISOL-592 --brief`: default receipt for cmux workers; paths and execution facts only.
+- `agent-queue context AISOL-592 --standard`: Super PRD and linked work when the worker needs more detail.
+- `agent-queue context AISOL-592 --deep`: full Jira description/comments only when explicitly requested.
+
+`execute-ready` also accepts `--engine claude|codex|ruflo|manual`. Claude is the only startable cmux engine today; the others are named adapter targets so future engines plug into the same contract instead of changing the workflow.
 
 ## Roadmap: Work Graph Planning
 
@@ -219,7 +227,8 @@ If no matching checkout exists, Queen Bot falls back to a managed clone. This av
 - Agent Q plan writes require `--write` and the exact interactive phrase `APPROVE JIRA PLAN`.
 - Agent Q proof comments require `--comment` and the exact interactive phrase `APPROVE JIRA PROOF`.
 - Agent Q execution workspaces require `--start` and the exact interactive phrase `APPROVE EXECUTION`.
-- Auto mode is never Jira approval. Jake must explicitly approve every Jira write, plan write, and proof comment.
+- Auto mode is never approval for ticket creation, plan description writes, proof comments, or execution starts.
+- Low-noise plan comments are the exception to extra approval phrasing, but they still require current-queue and Jake-owned write policy checks.
 - Ticket text and research notes are treated as untrusted source material.
 - Raw prompts, transcripts, and future execution logs should stay local.
 - Ruflo, Hermes, Codex, and manual execution should be adapter targets, not hidden dependencies.
