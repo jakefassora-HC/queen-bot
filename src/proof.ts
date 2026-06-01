@@ -1,6 +1,8 @@
 import { readFile } from 'fs/promises'
 import readline from 'readline'
 import { getJiraConfig } from './config.js'
+import { openCmuxExecutionWorkspace } from './cmux.js'
+import { buildExecutionContract } from './execution-command.js'
 import { commentOnTicket } from './jira.js'
 import { assertJiraWritePolicy } from './jira-write-policy.js'
 import type { JiraTicket, ProofReport } from './types.js'
@@ -76,6 +78,29 @@ export function assertProofTicketInQueue(report: ProofReport, tickets: JiraTicke
   return ticket
 }
 
+// Find tickets that are now unblocked by the completion of completedKey.
+// A ticket is unblocked when all its inward "Blocks" links are either the
+// just-completed ticket or not present in the active queue (already done).
+export function findUnblockedTickets(completedKey: string, tickets: JiraTicket[]): JiraTicket[] {
+  const completedTicket = tickets.find(t => t.key === completedKey)
+  if (!completedTicket) return []
+
+  const blockedKeys = (completedTicket.issueLinks ?? [])
+    .filter(l => l.type === 'Blocks' && l.direction === 'outward')
+    .map(l => l.key)
+
+  return blockedKeys.flatMap(blockedKey => {
+    const blockedTicket = tickets.find(t => t.key === blockedKey)
+    if (!blockedTicket) return []
+
+    const remainingBlockers = (blockedTicket.issueLinks ?? [])
+      .filter(l => l.type === 'Blocks' && l.direction === 'inward')
+      .filter(b => b.key !== completedKey && tickets.some(t => t.key === b.key))
+
+    return remainingBlockers.length === 0 ? [blockedTicket] : []
+  })
+}
+
 export async function runProofCommand(args: string[], tickets: JiraTicket[]): Promise<void> {
   const parsed = parseProofArgs(args)
   const report = JSON.parse(await readFile(parsed.file, 'utf8')) as ProofReport
@@ -98,4 +123,17 @@ export async function runProofCommand(args: string[], tickets: JiraTicket[]): Pr
 
   await commentOnTicket(report.ticketKey, formatted, permit)
   console.log(`Commented Agent Q proof on ${report.ticketKey}.`)
+
+  // Auto-progression: open cmux workspaces for any tickets now unblocked
+  const unblocked = findUnblockedTickets(report.ticketKey, tickets)
+  for (const nextTicket of unblocked) {
+    const result = buildExecutionContract(nextTicket)
+    if (!result.ok) {
+      console.log(`\n🔓 ${nextTicket.key} unblocked but not ready: ${result.reason}`)
+      if (result.fix) console.log(`   Fix: ${result.fix}`)
+      continue
+    }
+    console.log(`\n🔓 ${nextTicket.key} unblocked — opening execution workspace...`)
+    await openCmuxExecutionWorkspace(result.contract)
+  }
 }
