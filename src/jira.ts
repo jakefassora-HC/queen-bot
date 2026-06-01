@@ -305,6 +305,8 @@ type CreateIssuePayload = {
       content: JiraAdfNode[]
     }
     assignee?: { accountId: string }
+    customfield_10016?: number
+    parent?: { key: string }
   }
 }
 
@@ -477,13 +479,15 @@ function goalToAdfNodes(goal: TicketGoal): JiraAdfNode[] {
   return nodes
 }
 
-export function buildCreateIssuePayload(projectKey: string, draft: TicketDraft): CreateIssuePayload {
+export function buildCreateIssuePayload(projectKey: string, draft: TicketDraft, parentKey?: string): CreateIssuePayload {
   return {
     fields: {
       project: { key: projectKey },
       summary: draft.summary,
       issuetype: { name: draft.issueType },
       labels: uniqueLabels(draft.labels),
+      ...(draft.storyPoints > 0 ? { customfield_10016: draft.storyPoints } : {}),
+      ...(parentKey ? { parent: { key: parentKey } } : {}),
       description: (() => {
         const descriptionNodes: JiraAdfNode[] = [
           ...goalToAdfNodes(draft.goal),
@@ -524,12 +528,12 @@ async function getCurrentUserAccountId(config: JiraConfig, auth: string, fetcher
   } catch { return undefined }
 }
 
-export async function createIssueFromDraft(projectKey: string, draft: TicketDraft, permit: JiraWritePermit): Promise<string> {
+export async function createIssueFromDraft(projectKey: string, draft: TicketDraft, permit: JiraWritePermit, parentKey?: string): Promise<string> {
   assertPermit(permit, 'create-ticket')
   const config = requireJiraConfig()
   const auth = authHeader(config.email)
   const assigneeAccountId = await getCurrentUserAccountId(config, auth)
-  const payload = buildCreateIssuePayload(projectKey, draft)
+  const payload = buildCreateIssuePayload(projectKey, draft, parentKey)
   if (assigneeAccountId) payload.fields.assignee = { accountId: assigneeAccountId }
   const res = await fetch(`${config.baseUrl}/rest/api/3/issue`, {
     method: 'POST',

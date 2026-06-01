@@ -105,11 +105,11 @@ test('execution handoff does not ask for another planning approval after approva
     }
   })
 
-  expect(prompt).toContain('Execution is already approved')
+  expect(prompt).toContain('proceed')
   expect(prompt).toContain('agent-queue context AISOL-465 --brief')
   expect(prompt).not.toContain('agent-queue show AISOL-465')
   expect(prompt).not.toContain('plus the local plan path')
-  expect(prompt).toContain('begin implementation')
+  expect(prompt).toContain('After "proceed"')
   expect(prompt).not.toContain('propose the plan and wait')
 })
 

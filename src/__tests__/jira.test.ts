@@ -209,7 +209,8 @@ test('buildCreateIssuePayload turns a draft into Jira ADF fields', () => {
     risks: ['Prompt injection from ticket text'],
     definitionOfDone: ['Approved tickets are created in Jira'],
     labels: ['agent-spec'],
-    relatedRepos: ['jakefassora-HC/queen-bot']
+    relatedRepos: ['jakefassora-HC/queen-bot'],
+    storyPoints: 3
   })
 
   expect(payload.fields.project.key).toBe('TOOL')

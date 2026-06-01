@@ -58,7 +58,14 @@ export function buildClaudeHandoffPrompt(ticketKey: string, contract?: Execution
     lines.push('Start by running:')
     lines.push(`cd ~/projects/agent-queue && agent-queue context ${key} --brief`)
     lines.push('Use that compact execution packet as source context. If local_plan_status is ready, read the local plan file too. Do not dump full Jira unless debugging.')
-    lines.push('Execution is already approved. After reading Jira context and sanity-checking the repo, give a concise implementation outline and begin implementation inside the approved contract without asking Jake to approve the plan again.')
+    lines.push('BEFORE DOING ANYTHING ELSE: Print the following execution brief, then ask Jake to type "proceed" before you run any tool or write any code.')
+    lines.push(`EXECUTION BRIEF: ${key}`)
+    if (contract.goal) {
+      lines.push(`Goal: ${contract.goal.why}`)
+      if (contract.goal.successCriteria.length > 0) lines.push(`Success criteria: ${contract.goal.successCriteria.join(' | ')}`)
+    }
+    lines.push('Ask Jake: "Ready to execute? Type proceed to begin." Wait for "proceed" before taking any other action.')
+    lines.push('After "proceed": read Jira context, sanity-check repo, then execute inside the approved contract.')
     lines.push(`Approved execution contract: repo ${contract.repo}, branch ${contract.branch}, worktree ${contract.worktreePath}, autonomy level ${contract.autonomyLevel}.`)
     lines.push(`After reading Jira context, work in this directory: ${contract.worktreePath}.`)
   } else {

@@ -12,10 +12,10 @@ import { assertJiraWritePolicy } from './jira-write-policy.js'
 import { buildPlanPrompt, runClaude } from './plan.js'
 import {
   buildTicketDraftPrompt,
-  parseTicketDrafts,
-  summarizeTicketDrafts
+  parseDraftOutput,
+  summarizeDraftOutput
 } from './ticket-draft.js'
-import type { JiraPlan, ResearchSource, TicketDraft } from './types.js'
+import type { DraftOutput, JiraPlan, ResearchSource, TicketDraft } from './types.js'
 
 export interface DraftArgs {
   file: string
@@ -112,10 +112,10 @@ export async function runDraftCommand(args: string[]): Promise<void> {
     maxTickets: 4
   })
   const raw = await runClaude(draftPrompt)
-  const drafts = parseTicketDrafts(raw)
+  const output: DraftOutput = parseDraftOutput(raw)
 
   console.log('\nJira ticket drafts\n' + '─'.repeat(50))
-  console.log(summarizeTicketDrafts(drafts))
+  console.log(summarizeDraftOutput(output))
 
   if (!parsed.create) {
     console.log(`\nPreview only. Re-run with --create to request a Jira write, then type "${JIRA_WRITE_APPROVAL_PHRASE}" after reviewing the drafts.`)
@@ -136,14 +136,22 @@ export async function runDraftCommand(args: string[]): Promise<void> {
     email: config.email
   })
 
+  // Create parent Story first if present
+  let parentKey: string | undefined
+  if (output.parentStory) {
+    parentKey = await createIssueFromDraft(parsed.projectKey, output.parentStory, writePermit)
+    console.log(`Created Story ${parentKey}: ${output.parentStory.summary}`)
+  }
+
+  // Create Tasks under the Story
   const created: Array<{ key: string; draft: TicketDraft }> = []
-  for (const draft of drafts) {
-    const key = await createIssueFromDraft(parsed.projectKey, draft, writePermit)
-    console.log(`Created ${key}: ${draft.summary}`)
+  for (const draft of output.tasks) {
+    const key = await createIssueFromDraft(parsed.projectKey, draft, writePermit, parentKey)
+    console.log(`  Created ${key}: ${draft.summary}`)
     created.push({ key, draft })
   }
 
-  // Generate Agent Q plans for each ticket
+  // Generate Agent Q plans for each task
   console.log('\nGenerating implementation plans...')
   const plans: Array<{ key: string; draft: TicketDraft; plan: JiraPlan }> = []
   for (const { key, draft } of created) {

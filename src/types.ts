@@ -169,6 +169,12 @@ export interface TicketDraft {
   definitionOfDone: string[]
   labels: string[]
   relatedRepos: string[]
+  storyPoints: number
+}
+
+export interface DraftOutput {
+  parentStory?: TicketDraft
+  tasks: TicketDraft[]
 }
 
 export interface TicketDraftRequest {

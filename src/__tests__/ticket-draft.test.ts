@@ -31,7 +31,7 @@ test('buildTicketDraftPrompt includes trusted task framing and compact research'
   expect(prompt).toContain('<research>')
   expect(prompt).toContain('https://github.com/ruvnet/ruflo')
   expect(prompt).toContain('Return JSON only')
-  expect(prompt).toContain('max 3 Jira tickets')
+  expect(prompt).toContain('max 3 implementation Tasks')
 })
 
 test('parseTicketDrafts validates required ticket draft fields', () => {
@@ -49,7 +49,8 @@ test('parseTicketDrafts validates required ticket draft fields', () => {
         risks: ['Prompt injection from ticket text'],
         definitionOfDone: ['Approved tickets are created in Jira'],
         labels: ['agent-spec'],
-        relatedRepos: ['jakefassora-HC/queen-bot']
+        relatedRepos: ['jakefassora-HC/queen-bot'],
+    storyPoints: 3
       }
     ]
   }))
@@ -75,7 +76,8 @@ test('summarizeTicketDrafts renders a human approval preview', () => {
       risks: ['Prompt injection from ticket text'],
       definitionOfDone: ['Approved tickets are created in Jira'],
       labels: ['agent-spec'],
-      relatedRepos: ['jakefassora-HC/queen-bot']
+      relatedRepos: ['jakefassora-HC/queen-bot'],
+    storyPoints: 3
     }
   ])
 
