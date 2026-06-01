@@ -36,8 +36,9 @@ ${research.text}
 }
 
 export function parseTicketDrafts(raw: string): TicketDraft[] {
-  const cleaned = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
-  const parsed = JSON.parse(cleaned) as { tickets?: Array<Record<string, unknown>> }
+  const jsonMatch = raw.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) throw new Error(`No JSON object found in draft response: ${raw.slice(0, 200)}`)
+  const parsed = JSON.parse(jsonMatch[0]) as { tickets?: Array<Record<string, unknown>> }
   if (!Array.isArray(parsed.tickets)) throw new Error('Draft response missing tickets array')
 
   return parsed.tickets.map((ticket, index) => {

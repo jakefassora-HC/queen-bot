@@ -3,7 +3,7 @@ import type { TicketDraft } from './types.js'
 import type { JiraConfig } from './config.js'
 import type { JiraWritePermit } from './jira-write-policy.js'
 import { getJiraKey, requireJiraConfig } from './config.js'
-import { renderGoal } from './jira-goal.js'
+import type { TicketGoal } from './types.js'
 
 function authHeader(email: string): string {
   const creds = Buffer.from(`${email}:${getJiraKey()}`).toString('base64')
@@ -311,8 +311,8 @@ function paragraph(text: string): JiraAdfNode {
   return { type: 'paragraph', content: [{ type: 'text', text }] }
 }
 
-function heading(text: string): JiraAdfNode {
-  return { type: 'heading', attrs: { level: '2' }, content: [{ type: 'text', text }] }
+function heading(text: string, level = 2): JiraAdfNode {
+  return { type: 'heading', attrs: { level }, content: [{ type: 'text', text }] }
 }
 
 function bulletList(items: string[]): JiraAdfNode {
@@ -458,6 +458,24 @@ export function buildUpdateDescriptionPayload(description: JiraAdfDocument): { f
   }
 }
 
+function goalToAdfNodes(goal: TicketGoal): JiraAdfNode[] {
+  const nodes: JiraAdfNode[] = [
+    { type: 'heading', attrs: { level: 2 }, content: [textNode('Goal')] },
+    { type: 'heading', attrs: { level: 3 }, content: [textNode('Why')] },
+    paragraph(goal.why),
+  ]
+  if (goal.constraints.length > 0) {
+    nodes.push({ type: 'heading', attrs: { level: 3 }, content: [textNode('Constraints')] }, bulletList(goal.constraints))
+  }
+  if (goal.nonGoals.length > 0) {
+    nodes.push({ type: 'heading', attrs: { level: 3 }, content: [textNode('Non-Goals')] }, bulletList(goal.nonGoals))
+  }
+  if (goal.successCriteria.length > 0) {
+    nodes.push({ type: 'heading', attrs: { level: 3 }, content: [textNode('Success Criteria')] }, bulletList(goal.successCriteria))
+  }
+  return nodes
+}
+
 export function buildCreateIssuePayload(projectKey: string, draft: TicketDraft): CreateIssuePayload {
   return {
     fields: {
@@ -466,9 +484,8 @@ export function buildCreateIssuePayload(projectKey: string, draft: TicketDraft):
       issuetype: { name: draft.issueType },
       labels: uniqueLabels(draft.labels),
       description: (() => {
-        const goalText = renderGoal(draft.goal)
         const descriptionNodes: JiraAdfNode[] = [
-          ...plainTextToAdfBlocks(goalText),
+          ...goalToAdfNodes(draft.goal),
           heading('Problem'),
           ...plainTextToAdfBlocks(draft.problem),
         ]
