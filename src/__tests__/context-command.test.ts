@@ -11,7 +11,22 @@ const ticket: JiraTicket = {
   id: '1',
   key: 'AISOL-592',
   summary: 'Update SanKey to include all details on flow',
-  description: renderJiraPlan({
+  description: `## Goal
+
+### Why
+Show all Sankey flow details.
+
+### Constraints
+- None
+
+### Non-Goals
+- None
+
+### Success Criteria
+- All kicked-out reasons are visible.
+- Salesforce handoff details are visible.
+
+` + renderJiraPlan({
     ticketKey: 'AISOL-592',
     goal: 'Show all Sankey flow details.',
     context: ['Roadwarrior and Salesforce stages need clearer reason visibility.'],
