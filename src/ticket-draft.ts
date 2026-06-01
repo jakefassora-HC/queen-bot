@@ -1,4 +1,4 @@
-import type { ResearchSource, TicketDraft, TicketDraftRequest } from './types.js'
+import type { ResearchSource, TicketDraft, TicketDraftRequest, TicketGoal } from './types.js'
 import { compactText, TOKEN_DISCIPLINE } from './token-budget.js'
 
 function renderSources(sources: ResearchSource[]): string {
@@ -25,7 +25,7 @@ Use spec-driven development language.
 Use terse Jira language without filler.
 Apply token discipline: ${TOKEN_DISCIPLINE}.
 Return JSON only with shape:
-{"tickets":[{"summary":"","issueType":"Task","problem":"","goal":"","nonGoals":[],"acceptanceCriteria":[],"researchNotes":[],"risks":[],"definitionOfDone":[],"labels":[],"relatedRepos":[]}]}
+{"tickets":[{"summary":"","issueType":"Task","problem":"","goalWhy":"","goalConstraints":[],"goalNonGoals":[],"goalSuccessCriteria":[],"researchNotes":"","risks":[],"definitionOfDone":[],"labels":[],"relatedRepos":[]}]}
 </task>
 <idea>
 ${idea.text}
@@ -42,9 +42,16 @@ export function parseTicketDrafts(raw: string): TicketDraft[] {
   return parsed.tickets.map((ticket, index) => {
     const summary = String(ticket.summary ?? '').trim()
     const problem = String(ticket.problem ?? '').trim()
-    const goal = String(ticket.goal ?? '').trim()
-    if (!summary || !problem || !goal) {
-      throw new Error(`Draft ${index + 1} missing summary, problem, or goal`)
+    const goalWhy = String(ticket.goalWhy ?? '').trim()
+    if (!summary || !problem || !goalWhy) {
+      throw new Error(`Draft ${index + 1} missing summary, problem, or goalWhy`)
+    }
+
+    const goal: TicketGoal = {
+      why: goalWhy,
+      constraints: asStringArray(ticket.goalConstraints),
+      nonGoals: asStringArray(ticket.goalNonGoals),
+      successCriteria: asStringArray(ticket.goalSuccessCriteria),
     }
 
     return {
@@ -52,9 +59,7 @@ export function parseTicketDrafts(raw: string): TicketDraft[] {
       issueType: String(ticket.issueType ?? 'Task'),
       problem,
       goal,
-      nonGoals: asStringArray(ticket.nonGoals),
-      acceptanceCriteria: asStringArray(ticket.acceptanceCriteria),
-      researchNotes: asStringArray(ticket.researchNotes),
+      researchNotes: String(ticket.researchNotes ?? ''),
       risks: asStringArray(ticket.risks),
       definitionOfDone: asStringArray(ticket.definitionOfDone),
       labels: asStringArray(ticket.labels),
@@ -71,9 +76,10 @@ export function summarizeTicketDrafts(drafts: TicketDraft[]): string {
   return drafts.map((draft, index) => [
     `${index + 1}. ${draft.summary}`,
     `Type: ${draft.issueType}`,
-    `Goal: ${draft.goal}`,
-    'Acceptance criteria:',
-    renderBullets(draft.acceptanceCriteria),
+    `Goal: ${draft.goal.why}`,
+    ...(draft.goal.successCriteria.length > 0
+      ? [`Success Criteria:\n${draft.goal.successCriteria.map(c => `  - ${c}`).join('\n')}`]
+      : []),
     'Related repos:',
     renderBullets(draft.relatedRepos),
     'Risks:',

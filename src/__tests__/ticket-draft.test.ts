@@ -41,10 +41,11 @@ test('parseTicketDrafts validates required ticket draft fields', () => {
         summary: 'Draft Jira tickets from planning discussions',
         issueType: 'Task',
         problem: 'Ideas are not consistently captured in Jira.',
-        goal: 'Turn discussion into Jira-ready tickets.',
-        nonGoals: ['Execute agent swarms'],
-        acceptanceCriteria: ['Shows 1-N drafts', 'Requires approval before Jira write'],
-        researchNotes: ['Ruflo is adapter inspiration'],
+        goalWhy: 'Turn discussion into Jira-ready tickets.',
+        goalConstraints: [],
+        goalNonGoals: ['Execute agent swarms'],
+        goalSuccessCriteria: ['Shows 1-N drafts', 'Requires approval before Jira write'],
+        researchNotes: 'Ruflo is adapter inspiration',
         risks: ['Prompt injection from ticket text'],
         definitionOfDone: ['Approved tickets are created in Jira'],
         labels: ['agent-spec'],
@@ -55,7 +56,7 @@ test('parseTicketDrafts validates required ticket draft fields', () => {
 
   expect(drafts).toHaveLength(1)
   expect(drafts[0].summary).toBe('Draft Jira tickets from planning discussions')
-  expect(drafts[0].acceptanceCriteria).toContain('Shows 1-N drafts')
+  expect(drafts[0].goal.successCriteria).toContain('Shows 1-N drafts')
 })
 
 test('summarizeTicketDrafts renders a human approval preview', () => {
@@ -64,10 +65,13 @@ test('summarizeTicketDrafts renders a human approval preview', () => {
       summary: 'Draft Jira tickets from planning discussions',
       issueType: 'Task',
       problem: 'Ideas are not consistently captured in Jira.',
-      goal: 'Turn discussion into Jira-ready tickets.',
-      nonGoals: ['Execute agent swarms'],
-      acceptanceCriteria: ['Shows 1-N drafts'],
-      researchNotes: ['Ruflo is adapter inspiration'],
+      goal: {
+        why: 'Turn discussion into Jira-ready tickets.',
+        constraints: [],
+        nonGoals: ['Execute agent swarms'],
+        successCriteria: ['Shows 1-N drafts'],
+      },
+      researchNotes: 'Ruflo is adapter inspiration',
       risks: ['Prompt injection from ticket text'],
       definitionOfDone: ['Approved tickets are created in Jira'],
       labels: ['agent-spec'],
@@ -76,6 +80,6 @@ test('summarizeTicketDrafts renders a human approval preview', () => {
   ])
 
   expect(preview).toContain('1. Draft Jira tickets from planning discussions')
-  expect(preview).toContain('Acceptance criteria')
+  expect(preview).toContain('Goal: Turn discussion into Jira-ready tickets.')
   expect(preview).toContain('jakefassora-HC/queen-bot')
 })
