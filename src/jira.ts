@@ -304,6 +304,7 @@ type CreateIssuePayload = {
       version: 1
       content: JiraAdfNode[]
     }
+    assignee?: { accountId: string }
   }
 }
 
@@ -514,17 +515,26 @@ function assertPermit(permit: JiraWritePermit, action: JiraWritePermit['action']
   }
 }
 
+async function getCurrentUserAccountId(config: JiraConfig, auth: string, fetcher: Fetcher = fetch): Promise<string | undefined> {
+  try {
+    const res = await fetcher(`${config.baseUrl}/rest/api/3/myself`, { headers: { Authorization: auth, Accept: 'application/json' } })
+    if (!res.ok) return undefined
+    const data = await res.json() as { accountId?: string }
+    return data.accountId
+  } catch { return undefined }
+}
+
 export async function createIssueFromDraft(projectKey: string, draft: TicketDraft, permit: JiraWritePermit): Promise<string> {
   assertPermit(permit, 'create-ticket')
   const config = requireJiraConfig()
+  const auth = authHeader(config.email)
+  const assigneeAccountId = await getCurrentUserAccountId(config, auth)
+  const payload = buildCreateIssuePayload(projectKey, draft)
+  if (assigneeAccountId) payload.fields.assignee = { accountId: assigneeAccountId }
   const res = await fetch(`${config.baseUrl}/rest/api/3/issue`, {
     method: 'POST',
-    headers: {
-      Authorization: authHeader(config.email),
-      Accept: 'application/json',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(buildCreateIssuePayload(projectKey, draft))
+    headers: { Authorization: auth, Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
   })
   if (!res.ok) throw new Error(`Jira create issue error ${res.status}: ${await res.text()}`)
   const data = await res.json() as { key: string }
