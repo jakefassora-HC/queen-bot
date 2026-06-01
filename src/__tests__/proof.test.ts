@@ -5,6 +5,7 @@ import {
   hasProofApproval,
   parseProofArgs
 } from '../proof.js'
+import type { ProofReport } from '../types.js'
 
 test('formatProofReport renders evidence for Jira', () => {
   const output = formatProofReport({
