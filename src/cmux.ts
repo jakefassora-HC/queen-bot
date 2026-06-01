@@ -1,5 +1,6 @@
 import { spawn } from 'child_process'
 import { existsSync } from 'fs'
+import { renderGoal } from './jira-goal.js'
 import type { ExecutionContract } from './types.js'
 
 export const DEFAULT_CMUX_BINARY = '/Applications/cmux.app/Contents/Resources/bin/cmux'
@@ -36,6 +37,11 @@ export function cmuxStartHelp(): string {
 
 export function buildClaudeHandoffPrompt(ticketKey: string, contract?: ExecutionContract): string {
   const key = cmuxWorkspaceName(ticketKey)
+
+  const goalBlock = contract?.goal
+    ? `# Goal (source of truth)\n\n${renderGoal(contract.goal)}\n\nThe Goal above is your primary constraint. If the Plan below conflicts with the Goal, the Goal wins.\n\n`
+    : ''
+
   const lines = [
     `You are Agent Q for Jira ticket ${key}.`,
     'Execute only after the ticket has an approved Jira plan and autonomy level.',
@@ -62,7 +68,7 @@ export function buildClaudeHandoffPrompt(ticketKey: string, contract?: Execution
     lines.push('After you understand the ticket, propose the plan and wait for Jake before implementing.')
   }
 
-  return lines.join(' ')
+  return goalBlock + lines.join(' ')
 }
 
 export function buildCmuxAgentCommand(ticketKey: string, cmuxBinary = resolveCmuxBinary(), contract?: ExecutionContract): string {
