@@ -173,6 +173,7 @@ export interface TicketDraft {
 }
 
 export interface DraftOutput {
+  epicKey?: string
   parentStory?: TicketDraft
   tasks: TicketDraft[]
 }
@@ -182,6 +183,7 @@ export interface TicketDraftRequest {
   sources: ResearchSource[]
   projectKey: string
   maxTickets: number
+  epics?: Array<{ key: string; summary: string }>
 }
 
 export interface Plan {

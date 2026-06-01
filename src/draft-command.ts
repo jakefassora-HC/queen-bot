@@ -4,6 +4,7 @@ import { getJiraConfig } from './config.js'
 import {
   buildCreateIssuePayload,
   createIssueFromDraft,
+  fetchEpics,
   updateTicketDescription,
   upsertTextToDescriptionAdf
 } from './jira.js'
@@ -105,11 +106,13 @@ function buildPlanFromDraft(key: string, draft: TicketDraft, rawImplementation: 
 export async function runDraftCommand(args: string[]): Promise<void> {
   const parsed = parseDraftArgs(args)
   const idea = await readFile(parsed.file, 'utf8')
+  const epics = await fetchEpics(parsed.projectKey)
   const draftPrompt = buildTicketDraftPrompt({
     idea,
     sources: parsed.sources,
     projectKey: parsed.projectKey,
-    maxTickets: 4
+    maxTickets: 4,
+    epics,
   })
   const raw = await runClaude(draftPrompt)
   const output: DraftOutput = parseDraftOutput(raw)
@@ -136,11 +139,12 @@ export async function runDraftCommand(args: string[]): Promise<void> {
     email: config.email
   })
 
-  // Create parent Story first if present
+  // Create parent Story first, linked to epic if detected
   let parentKey: string | undefined
   if (output.parentStory) {
-    parentKey = await createIssueFromDraft(parsed.projectKey, output.parentStory, writePermit)
-    console.log(`Created Story ${parentKey}: ${output.parentStory.summary}`)
+    parentKey = await createIssueFromDraft(parsed.projectKey, output.parentStory, writePermit, output.epicKey)
+    const epicNote = output.epicKey ? ` → ${output.epicKey}` : ''
+    console.log(`Created Story ${parentKey}: ${output.parentStory.summary}${epicNote}`)
   }
 
   // Create Tasks under the Story

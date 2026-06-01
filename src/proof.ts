@@ -3,7 +3,7 @@ import readline from 'readline'
 import { getJiraConfig } from './config.js'
 import { openCmuxExecutionWorkspace } from './cmux.js'
 import { buildExecutionContract } from './execution-command.js'
-import { commentOnTicket } from './jira.js'
+import { commentOnTicket, transitionTicket } from './jira.js'
 import { assertJiraWritePolicy } from './jira-write-policy.js'
 import type { JiraTicket, ProofReport } from './types.js'
 
@@ -123,6 +123,15 @@ export async function runProofCommand(args: string[], tickets: JiraTicket[]): Pr
 
   await commentOnTicket(report.ticketKey, formatted, permit)
   console.log(`Commented Agent Q proof on ${report.ticketKey}.`)
+
+  // Transition ticket to Done
+  try {
+    const donePermit = assertJiraWritePolicy({ action: 'transition', ticket, tickets, email: getJiraConfig().email })
+    await transitionTicket(report.ticketKey, 'Done', donePermit)
+    console.log(`Transitioned ${report.ticketKey} to Done.`)
+  } catch (err) {
+    console.log(`Could not transition to Done: ${err instanceof Error ? err.message : err}`)
+  }
 
   // Auto-progression: open cmux workspaces for any tickets now unblocked
   const unblocked = findUnblockedTickets(report.ticketKey, tickets)

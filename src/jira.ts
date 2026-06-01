@@ -251,6 +251,19 @@ async function fetchFieldNameMap(config: JiraConfig, auth: string): Promise<Reco
   }, {})
 }
 
+export async function fetchEpics(projectKey: string): Promise<Array<{ key: string; summary: string }>> {
+  const config = requireJiraConfig()
+  const auth = authHeader(config.email)
+  const jql = `project = ${projectKey} AND issuetype = Epic ORDER BY created DESC`
+  const params = new URLSearchParams({ jql, maxResults: '50', fields: 'summary' })
+  const res = await fetch(`${config.baseUrl}/rest/api/3/search/jql?${params}`, {
+    headers: { Authorization: auth, Accept: 'application/json' }
+  })
+  if (!res.ok) return []
+  const data = await res.json() as { issues: Array<{ key: string; fields: { summary: string } }> }
+  return data.issues.map(i => ({ key: i.key, summary: i.fields.summary }))
+}
+
 export async function fetchQueue(): Promise<JiraTicket[]> {
   const config = requireJiraConfig()
   const auth = authHeader(config.email)
