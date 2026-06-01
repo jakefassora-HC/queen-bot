@@ -91,9 +91,17 @@ export interface TicketReadiness {
 }
 
 export type AutonomyLevel = 0 | 1 | 2 | 3 | 4
+
+export interface TicketGoal {
+  why: string
+  constraints: string[]
+  nonGoals: string[]
+  successCriteria: string[]
+}
+
 export type ExecutionEngine = 'claude' | 'codex' | 'ruflo' | 'manual'
 export type ContextMode = 'brief' | 'standard' | 'deep'
-export type JiraWriteAction = 'comment' | 'update-description' | 'create-ticket' | 'transition' | 'link-issue'
+export type JiraWriteAction = 'comment' | 'update-description' | 'create-ticket' | 'transition' | 'link-issue' | 'upsert-goal'
 export type RunManifestStatus = 'pending' | 'running' | 'done' | 'failed'
 
 export interface JiraPlan {
@@ -117,6 +125,7 @@ export interface ExecutionContract {
   worktreePath: string
   engine: ExecutionEngine
   autonomyLevel: AutonomyLevel
+  goal: TicketGoal | null
   approvedAt: string
 }
 
@@ -152,10 +161,8 @@ export interface TicketDraft {
   summary: string
   issueType: string
   problem: string
-  goal: string
-  nonGoals: string[]
-  acceptanceCriteria: string[]
-  researchNotes: string[]
+  goal: TicketGoal
+  researchNotes: string
   risks: string[]
   definitionOfDone: string[]
   labels: string[]
