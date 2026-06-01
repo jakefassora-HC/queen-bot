@@ -1,6 +1,7 @@
 import readline from 'readline'
 import { parseExecutionEngine } from './execution-engine.js'
 import { parseJiraPlan } from './jira-plan.js'
+import { parseGoal } from './jira-goal.js'
 import { preflightExecutionTicket, type PreflightMessage, type PreflightOptions } from './preflight.js'
 import { scoreTicketReadiness } from './readiness.js'
 import { resolveTicketSelection } from './queue-command.js'
@@ -46,6 +47,15 @@ export function buildExecutionContract(
   preflightOptions: PreflightOptions = {},
   engine: ExecutionEngine = 'claude'
 ): ExecutionContractResult {
+  const goal = parseGoal(ticket.description)
+  if (!goal) {
+    return {
+      ok: false,
+      ticketKey: ticket.key,
+      reason: 'Missing Goal artifact — add a ## Goal section with Why and Success Criteria before executing.',
+    }
+  }
+
   const plan = parseJiraPlan(ticket.description)
   if (!plan) return { ok: false, ticketKey: ticket.key, reason: 'missing Agent Q Plan', fix: `agent-queue plan ${ticket.key} --write` }
   if (plan.ticketKey !== ticket.key) return { ok: false, ticketKey: ticket.key, reason: `Agent Q Plan ticket mismatch: ${plan.ticketKey}` }
@@ -72,6 +82,7 @@ export function buildExecutionContract(
     contract: {
       ticketKey: ticket.key,
       plan,
+      goal,
       repo: ticket.repo,
       branch: buildExecutionBranch(ticket.key),
       worktreePath: worktreePath(ticket.key, repoPath),

@@ -6,15 +6,23 @@ import {
   hasExecutionApproval,
   parseExecuteReadyArgs
 } from '../execution-command.js'
+import { renderGoal } from '../jira-goal.js'
 import { renderJiraPlan } from '../jira-plan.js'
 import { localPlanPath } from '../local-plan.js'
 import type { JiraTicket } from '../types.js'
+
+const sampleGoal = renderGoal({
+  why: 'Teammates need clear onboarding documentation.',
+  constraints: ['Must use existing docs patterns.'],
+  nonGoals: ['Full API documentation.'],
+  successCriteria: ['A teammate can follow setup end-to-end.'],
+})
 
 const plannedTicket: JiraTicket = {
   id: '1',
   key: 'AISOL-465',
   summary: 'Handoff docs',
-  description: renderJiraPlan({
+  description: sampleGoal + '\n\n' + renderJiraPlan({
     ticketKey: 'AISOL-465',
     goal: 'Create handoff docs.',
     context: ['Roadwarrior onboarding is scattered.'],
@@ -71,8 +79,41 @@ test('buildExecutionContract requires a ready Agent Q plan and repo', () => {
   expect(result.contract.engine).toBe('claude')
 })
 
+test('buildExecutionContract rejects tickets missing a Goal artifact', () => {
+  const descriptionWithoutGoal = renderJiraPlan({
+    ticketKey: 'AISOL-465',
+    goal: 'Create handoff docs.',
+    context: ['Roadwarrior onboarding is scattered.'],
+    acceptanceCriteria: ['A teammate can follow setup.'],
+    implementationNotes: ['Use existing docs patterns.'],
+    verification: ['Run markdown checks.'],
+    risks: ['Docs can go stale.'],
+    autonomyLevel: 2,
+    forbiddenActions: ['Do not merge.', 'Do not deploy.'],
+    localPlanPath: localPlanPath({
+      id: '1',
+      key: 'AISOL-465',
+      summary: 'Handoff docs',
+      description: '',
+      storyPoints: null,
+      issueType: 'Story',
+      labels: [],
+      status: 'In Progress',
+      repo: 'jakefassora-HC/queen-bot'
+    })
+  })
+  const result = buildExecutionContract(
+    { ...plannedTicket, description: descriptionWithoutGoal },
+    { localPlanExists: () => true, repoExists: () => true }
+  )
+
+  expect(result.ok).toBe(false)
+  if (result.ok) throw new Error('expected rejection')
+  expect(result.reason).toMatch(/Missing Goal artifact/)
+})
+
 test('buildExecutionContract rejects missing plans', () => {
-  const result = buildExecutionContract({ ...plannedTicket, description: '' }, { localPlanExists: () => true, repoExists: () => true })
+  const result = buildExecutionContract({ ...plannedTicket, description: sampleGoal }, { localPlanExists: () => true, repoExists: () => true })
 
   expect(result.ok).toBe(false)
   if (result.ok) throw new Error('expected rejection')
