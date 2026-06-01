@@ -4,7 +4,6 @@ import { generatePlan } from './plan.js'
 import { route } from './route.js'
 import { createWorktree, removeWorktree, branchName } from './worktree.js'
 import { spawnDocker } from './spawn-docker.js'
-import { getAnthropicKey } from './config.js'
 import { spawnNative } from './spawn-native.js'
 import { commitAndPush, openDraftPr } from './pr.js'
 import { writeRun, updateRun, activeRuns } from './state.js'
@@ -66,7 +65,7 @@ async function runTicket(ticket: JiraTicket): Promise<void> {
 
   try {
     if (r.runtime === 'claude-docker') {
-      await spawnDocker(worktree, plan.raw, getAnthropicKey())
+      await spawnDocker(worktree, plan.raw, '')
     } else {
       await spawnNative(worktree, plan.raw)
     }

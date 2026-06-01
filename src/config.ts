@@ -18,9 +18,6 @@ function keychain(service: string): string {
 }
 
 export function getJiraKey(): string { return keychain('agent-queue-jira') }
-export function getAnthropicKey(): string {
-  return process.env.ANTHROPIC_API_KEY ?? keychain('agent-queue-anthropic')
-}
 
 export function getJiraConfig(env: NodeJS.ProcessEnv = process.env): JiraConfig {
   return {
