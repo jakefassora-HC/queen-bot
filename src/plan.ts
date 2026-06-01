@@ -1,18 +1,31 @@
-import Anthropic from '@anthropic-ai/sdk'
+import { spawn } from 'child_process'
+import type { SpawnOptions } from 'child_process'
 import type { JiraTicket, Plan } from './types.js'
-import { getAnthropicKey } from './config.js'
-import { PLANNER_MODEL } from './models.js'
 
-export async function runClaude(prompt: string): Promise<string> {
-  const client = new Anthropic({ apiKey: getAnthropicKey() })
-  const message = await client.messages.create({
-    model: PLANNER_MODEL,
-    max_tokens: 8096,
-    messages: [{ role: 'user', content: prompt }],
+export function buildClaudeArgs(prompt: string): string[] {
+  return ['-p', prompt, '--output-format', 'text']
+}
+
+export function buildClaudeSpawnOptions(): SpawnOptions {
+  return {
+    shell: false,
+    env: process.env,
+    stdio: ['ignore', 'pipe', 'pipe']
+  }
+}
+
+// Uses existing Claude Code CLI auth — no separate API key needed
+export function runClaude(prompt: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let output = ''
+    let errorOutput = ''
+    const proc = spawn('claude', buildClaudeArgs(prompt), buildClaudeSpawnOptions())
+    proc.stdout?.on('data', (d: Buffer) => { output += d.toString() })
+    proc.stderr?.on('data', (d: Buffer) => { errorOutput += d.toString() })
+    proc.on('exit', code => code === 0
+      ? resolve(output.trim())
+      : reject(new Error(`claude exited ${code}: ${errorOutput.trim() || output.trim()}`)))
   })
-  const block = message.content[0]
-  if (block.type !== 'text') throw new Error('Unexpected non-text response from Claude API')
-  return block.text.trim()
 }
 
 export function buildPlanPrompt(ticketKey: string, summary: string, description: string): string {
