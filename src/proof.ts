@@ -36,7 +36,7 @@ export function parseProofArgs(args: string[]): ProofArgs {
 }
 
 export function formatProofReport(report: ProofReport): string {
-  return [
+  const sections = [
     '## Agent Q Proof',
     `Ticket: ${report.ticketKey}`,
     `Branch: ${report.branch}`,
@@ -53,7 +53,19 @@ export function formatProofReport(report: ProofReport): string {
     '',
     '### Residual Risk',
     bullets(report.residualRisk)
-  ].join('\n')
+  ]
+
+  if (report.goal?.successCriteria && report.goal.successCriteria.length > 0) {
+    const criteria = report.goal.successCriteria.map(c => `- [ ] ${c}`).join('\n')
+    sections.push('')
+    sections.push('## Goal Verification')
+    sections.push('')
+    sections.push('Check each Success Criterion against the evidence above:')
+    sections.push('')
+    sections.push(criteria)
+  }
+
+  return sections.join('\n')
 }
 
 export function assertProofTicketInQueue(report: ProofReport, tickets: JiraTicket[]): JiraTicket {

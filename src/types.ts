@@ -150,6 +150,7 @@ export interface ProofReport {
   filesChanged: string[]
   verification: string[]
   residualRisk: string[]
+  goal?: TicketGoal
 }
 
 export interface ResearchSource {

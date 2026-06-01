@@ -56,3 +56,37 @@ test('proof comments must target a ticket in the current Jira queue', () => {
 
   expect(() => assertProofTicketInQueue(report, [])).toThrow('not in the current Jira queue')
 })
+
+test('includes Goal Verification checklist when goal is present', () => {
+  const report: ProofReport = {
+    ticketKey: 'AISOL-465',
+    branch: 'agent/AISOL-465',
+    summary: 'Added onboarding docs.',
+    filesChanged: ['docs/onboarding.md'],
+    verification: ['npm test passed'],
+    residualRisk: ['Docs can go stale.'],
+    goal: {
+      why: 'Users need rejection reasons.',
+      constraints: [],
+      nonGoals: [],
+      successCriteria: ['Rejection reasons visible', 'All stages shown'],
+    },
+  }
+  const formatted = formatProofReport(report)
+  expect(formatted).toContain('## Goal Verification')
+  expect(formatted).toContain('- [ ] Rejection reasons visible')
+  expect(formatted).toContain('- [ ] All stages shown')
+})
+
+test('omits Goal Verification when goal is not present', () => {
+  const report: ProofReport = {
+    ticketKey: 'AISOL-465',
+    branch: 'agent/AISOL-465',
+    summary: 'Added onboarding docs.',
+    filesChanged: ['docs/onboarding.md'],
+    verification: ['npm test passed'],
+    residualRisk: ['Docs can go stale.'],
+  }
+  const formatted = formatProofReport(report)
+  expect(formatted).not.toContain('## Goal Verification')
+})
