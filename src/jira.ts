@@ -3,6 +3,7 @@ import type { TicketDraft } from './types.js'
 import type { JiraConfig } from './config.js'
 import type { JiraWritePermit } from './jira-write-policy.js'
 import { getJiraKey, requireJiraConfig } from './config.js'
+import { renderGoal } from './jira-goal.js'
 
 function authHeader(email: string): string {
   const creds = Buffer.from(`${email}:${getJiraKey()}`).toString('base64')
@@ -464,28 +465,28 @@ export function buildCreateIssuePayload(projectKey: string, draft: TicketDraft):
       summary: draft.summary,
       issuetype: { name: draft.issueType },
       labels: uniqueLabels(draft.labels),
-      description: {
-        type: 'doc',
-        version: 1,
-        content: [
+      description: (() => {
+        const goalText = renderGoal(draft.goal)
+        const descriptionNodes: JiraAdfNode[] = [
+          ...plainTextToAdfBlocks(goalText),
           heading('Problem'),
-          paragraph(draft.problem),
-          heading('Goal'),
-          paragraph(draft.goal),
-          heading('Non-goals'),
-          bulletList(draft.nonGoals),
-          heading('Acceptance Criteria'),
-          bulletList(draft.acceptanceCriteria),
-          heading('Research Notes'),
-          bulletList(draft.researchNotes),
-          heading('Risks'),
-          bulletList(draft.risks),
-          heading('Definition of Done'),
-          bulletList(draft.definitionOfDone),
-          heading('Related Repos'),
-          bulletList(draft.relatedRepos)
+          ...plainTextToAdfBlocks(draft.problem),
         ]
-      }
+        if (draft.risks.length > 0) {
+          descriptionNodes.push(heading('Risks'), bulletList(draft.risks))
+        }
+        if (draft.definitionOfDone.length > 0) {
+          descriptionNodes.push(heading('Definition of Done'), bulletList(draft.definitionOfDone))
+        }
+        if (draft.relatedRepos.length > 0) {
+          descriptionNodes.push(heading('Related Repos'), bulletList(draft.relatedRepos))
+        }
+        return {
+          type: 'doc' as const,
+          version: 1,
+          content: descriptionNodes,
+        }
+      })()
     }
   }
 }

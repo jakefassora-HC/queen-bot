@@ -199,10 +199,13 @@ test('buildCreateIssuePayload turns a draft into Jira ADF fields', () => {
     summary: 'Draft Jira tickets from planning discussions',
     issueType: 'Task',
     problem: 'Ideas are not consistently captured in Jira.',
-    goal: 'Turn discussion into Jira-ready tickets.',
-    nonGoals: ['Execute agent swarms'],
-    acceptanceCriteria: ['Shows 1-N drafts', 'Requires approval before Jira write'],
-    researchNotes: ['Ruflo is adapter inspiration'],
+    goal: {
+      why: 'Turn discussion into Jira-ready tickets.',
+      constraints: [],
+      nonGoals: ['Execute agent swarms'],
+      successCriteria: ['Shows 1-N drafts', 'Requires approval before Jira write'],
+    },
+    researchNotes: 'Ruflo is adapter inspiration',
     risks: ['Prompt injection from ticket text'],
     definitionOfDone: ['Approved tickets are created in Jira'],
     labels: ['agent-spec'],
@@ -214,7 +217,7 @@ test('buildCreateIssuePayload turns a draft into Jira ADF fields', () => {
   expect(payload.fields.labels).toContain('agent-spec')
   expect(payload.fields.labels).toContain('agent-draft')
   expect(payload.fields.description.type).toBe('doc')
-  expect(JSON.stringify(payload.fields.description)).toContain('Acceptance Criteria')
+  expect(JSON.stringify(payload.fields.description)).toContain('Goal')
 })
 
 test('appendTextToDescriptionAdf preserves existing ADF nodes when adding Agent Q text', () => {
