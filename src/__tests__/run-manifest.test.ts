@@ -16,6 +16,7 @@ const contract: ExecutionContract = {
   autonomyLevel: 2,
   approvedAt: '2026-05-29T12:00:00.000Z',
   engine: 'claude',
+  goal: null,
   plan: {
     ticketKey: 'AISOL-592',
     goal: 'Show Sankey details.',

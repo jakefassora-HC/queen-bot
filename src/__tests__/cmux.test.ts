@@ -62,6 +62,7 @@ test('buildCmuxExecutionWorkspaceArgs starts in the execution worktree', () => {
     engine: 'claude',
     autonomyLevel: 2,
     approvedAt: 'pending',
+    goal: null,
     plan: {
       ticketKey: 'AISOL-465',
       goal: 'Goal',
@@ -90,6 +91,7 @@ test('execution handoff does not ask for another planning approval after approva
     engine: 'claude',
     autonomyLevel: 2,
     approvedAt: '2026-05-28T00:00:00.000Z',
+    goal: null,
     plan: {
       ticketKey: 'AISOL-465',
       goal: 'Goal',
