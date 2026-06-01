@@ -1,5 +1,6 @@
 import type { JiraTicket, TicketReadiness } from './types.js'
 import { parseJiraPlan, renderJiraPlan } from './jira-plan.js'
+import { parseGoal } from './jira-goal.js'
 
 const REQUIRED_SIGNALS = [
   { key: 'goal', pattern: /(?:^|\n)#{0,3}\s*(?:goal|user story)\b|goal:|as a .+?\bi want\b/i, points: 20 },
@@ -25,12 +26,24 @@ export function scoreTicketReadiness(ticket: JiraTicket): TicketReadiness {
   const description = parsedPlan ? renderJiraPlan(parsedPlan) : ticket.description || ''
   const planningContext = ticketPlanningContext(ticket, description)
   const strengths: string[] = []
+  const weaknesses: string[] = []
   const missing: string[] = parsedPlan ? [] : ['Agent Q Plan']
   let score = ticket.summary.trim() ? 10 : 0
 
   if (parsedPlan) {
     score += 10
     strengths.push('Agent Q Plan')
+  }
+
+  const goal = parseGoal(ticket.description ?? '')
+
+  if (!goal) {
+    weaknesses.push('Missing Goal artifact (## Goal section with Why and Success Criteria)')
+  } else {
+    strengths.push('Goal artifact present')
+    if (goal.successCriteria.length === 0) {
+      weaknesses.push('Goal has no Success Criteria')
+    }
   }
 
   for (const signal of REQUIRED_SIGNALS) {
@@ -94,6 +107,7 @@ export function scoreTicketReadiness(ticket: JiraTicket): TicketReadiness {
     band,
     canExecute,
     strengths,
+    weaknesses,
     missing,
     reason: canExecute
       ? 'Ticket has enough Jira context to execute from the plan.'

@@ -87,6 +87,7 @@ export interface TicketReadiness {
   canExecute: boolean
   strengths: string[]
   missing: string[]
+  weaknesses: string[]
   reason: string
 }
 
