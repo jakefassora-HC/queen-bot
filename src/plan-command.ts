@@ -5,6 +5,7 @@ import { updateTicketDescription, upsertTextToDescriptionAdf } from './jira.js'
 import { assertJiraWritePolicy } from './jira-write-policy.js'
 import { localPlanPath, writeLocalPlan } from './local-plan.js'
 import { resolveTicketSelection } from './queue-command.js'
+import { parseGoal } from './jira-goal.js'
 import type { JiraAdfDocument, JiraPlan, JiraTicket } from './types.js'
 
 export interface PlanArgs {
@@ -30,13 +31,20 @@ function prompt(question: string): Promise<string> {
 }
 
 export function buildPlanFromTicket(ticket: JiraTicket): JiraPlan {
+  const goal = parseGoal(ticket.description ?? '')
+  const acceptanceCriteria = goal?.successCriteria?.length
+    ? goal.successCriteria
+    : ['Defined with Jake before execution.']
+  const verification = acceptanceCriteria === goal?.successCriteria
+    ? acceptanceCriteria.map(c => `Verify: ${c}`)
+    : ['Run the smallest meaningful verification command before reporting done.']
   return {
     ticketKey: ticket.key,
-    goal: ticket.summary,
-    context: ticket.description ? [ticket.description] : ['Jake will provide context in the planning cmux session.'],
-    acceptanceCriteria: ['Defined with Jake before execution.'],
+    goal: goal?.why ?? ticket.summary,
+    context: ticket.description ? [ticket.description.slice(0, 500)] : ['Jake will provide context in the planning cmux session.'],
+    acceptanceCriteria,
     implementationNotes: ['Use repo patterns and Superpowers planning before code changes.'],
-    verification: ['Run the smallest meaningful verification command before reporting done.'],
+    verification,
     risks: ['Under-specified ticket can cause agent drift.'],
     autonomyLevel: 2,
     forbiddenActions: ['Do not merge.', 'Do not deploy.', 'Do not update Jira without approval.'],
