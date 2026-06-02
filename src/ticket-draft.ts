@@ -1,5 +1,6 @@
 import type { DraftOutput, ResearchSource, TicketDraft, TicketDraftRequest, TicketGoal } from './types.js'
 import { compactText, TOKEN_DISCIPLINE } from './token-budget.js'
+import { extractJson, JSON_ONLY_INSTRUCTION } from './json-extract.js'
 
 function renderSources(sources: ResearchSource[]): string {
   return sources.map(source => [
@@ -48,7 +49,7 @@ Rules:
 - Use spec-driven development language. Terse, no filler.
 - Apply token discipline: ${TOKEN_DISCIPLINE}.
 
-Return JSON only:
+${JSON_ONLY_INSTRUCTION}
 {
   "epicKey": "AISOL-263",
   "parentStory": ${TICKET_SCHEMA.replace('"Task"', '"Story"')},
@@ -95,9 +96,7 @@ function parseOneDraft(raw: Record<string, unknown>, index: number): TicketDraft
 }
 
 export function parseDraftOutput(raw: string): DraftOutput {
-  const jsonMatch = raw.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) throw new Error(`No JSON object found in draft response: ${raw.slice(0, 200)}`)
-  const parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>
+  const parsed = JSON.parse(extractJson(raw)) as Record<string, unknown>
 
   const epicKey = typeof parsed.epicKey === 'string' && parsed.epicKey !== 'null'
     ? parsed.epicKey

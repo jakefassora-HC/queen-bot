@@ -1,6 +1,7 @@
 import { spawn } from 'child_process'
 import type { SpawnOptions } from 'child_process'
 import type { JiraTicket, Plan } from './types.js'
+import { extractJson } from './json-extract.js'
 
 export function buildClaudeArgs(prompt: string): string[] {
   return ['-p', prompt, '--output-format', 'text']
@@ -36,8 +37,7 @@ export function buildPlanPrompt(ticketKey: string, summary: string, description:
 
 export function parseScreenResponse(text: string): { safe: boolean; reason: string } {
   try {
-    const cleaned = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim()
-    const json = JSON.parse(cleaned)
+    const json = JSON.parse(extractJson(text))
     return { safe: json.safe === true, reason: typeof json.reason === 'string' ? json.reason : '' }
   } catch {
     return { safe: false, reason: `Could not parse screen response: ${text}` }

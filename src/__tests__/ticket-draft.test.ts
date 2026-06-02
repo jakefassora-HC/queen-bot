@@ -30,8 +30,8 @@ test('buildTicketDraftPrompt includes trusted task framing and compact research'
   expect(prompt).toContain('<idea>')
   expect(prompt).toContain('<research>')
   expect(prompt).toContain('https://github.com/ruvnet/ruflo')
-  expect(prompt).toContain('Return JSON only')
   expect(prompt).toContain('max 3 implementation Tasks')
+  expect(prompt).toContain('CRITICAL')
 })
 
 test('parseTicketDrafts validates required ticket draft fields', () => {
