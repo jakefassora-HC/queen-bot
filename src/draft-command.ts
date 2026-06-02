@@ -169,7 +169,8 @@ export async function runDraftCommand(args: string[]): Promise<void> {
   const created: Array<{ key: string; draft: TicketDraft }> = []
   for (const draft of output.tasks) {
     const labeled = draftWithRepoLabel(draft)
-    const key = await createIssueFromDraft(parsed.projectKey, labeled, writePermit, parentKey)
+    // Tasks parent to the Epic (not the Story) — classic Jira doesn't allow Task→Story hierarchy
+    const key = await createIssueFromDraft(parsed.projectKey, labeled, writePermit, output.epicKey)
     console.log(`  Created ${key}: ${labeled.summary}`)
     created.push({ key, draft: labeled })
   }
