@@ -68,6 +68,8 @@ export function buildClaudeHandoffPrompt(ticketKey: string, contract?: Execution
     lines.push('After "proceed": read Jira context, sanity-check repo, then execute inside the approved contract.')
     lines.push(`Approved execution contract: repo ${contract.repo}, branch ${contract.branch}, worktree ${contract.worktreePath}, autonomy level ${contract.autonomyLevel}.`)
     lines.push(`After reading Jira context, work in this directory: ${contract.worktreePath}.`)
+    lines.push(`When your work is complete, write /tmp/proof-${key}.json: { "ticketKey": "${key}", "branch": "<branch>", "prUrl": "<url or null>", "summary": "<one paragraph>", "filesChanged": ["<path>"], "verification": ["<what you ran and what passed>"], "residualRisk": ["<anything incomplete>"] }`)
+    lines.push(`Then run: cd ~/projects/agent-queue && agent-queue proof --file /tmp/proof-${key}.json --comment`)
   } else {
     lines.push('Start by running:')
     lines.push(`cd ~/projects/agent-queue && agent-queue show ${key}`)

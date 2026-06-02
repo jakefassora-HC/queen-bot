@@ -52,8 +52,10 @@ Return JSON only:
 {
   "epicKey": "AISOL-263",
   "parentStory": ${TICKET_SCHEMA.replace('"Task"', '"Story"')},
-  "tasks": [${TICKET_SCHEMA}]
+  "tasks": [${TICKET_SCHEMA}],
+  "taskLinks": [{"fromIndex": 0, "blocksIndex": 1}]
 }
+taskLinks: fromIndex blocks blocksIndex (0-based). Omit link if tasks are parallel with no ordering dependency.
 </task>
 <idea>
 ${idea.text}
@@ -101,14 +103,20 @@ export function parseDraftOutput(raw: string): DraftOutput {
     ? parsed.epicKey
     : undefined
 
-  // New shape: { epicKey, parentStory, tasks }
+  // New shape: { epicKey, parentStory, tasks, taskLinks }
   if (parsed.tasks && Array.isArray(parsed.tasks)) {
+    const taskLinks = Array.isArray(parsed.taskLinks)
+      ? (parsed.taskLinks as Array<Record<string, unknown>>)
+          .filter(l => typeof l.fromIndex === 'number' && typeof l.blocksIndex === 'number')
+          .map(l => ({ fromIndex: l.fromIndex as number, blocksIndex: l.blocksIndex as number }))
+      : undefined
     return {
       epicKey,
       parentStory: parsed.parentStory
         ? parseOneDraft(parsed.parentStory as Record<string, unknown>, 0)
         : undefined,
       tasks: (parsed.tasks as Array<Record<string, unknown>>).map((t, i) => parseOneDraft(t, i)),
+      taskLinks,
     }
   }
 

@@ -3,6 +3,7 @@ import readline from 'readline'
 import { getJiraConfig } from './config.js'
 import {
   buildCreateIssuePayload,
+  createIssueLinkInJira,
   createIssueFromDraft,
   fetchEpics,
   updateTicketDescription,
@@ -89,7 +90,17 @@ function prompt(q: string): Promise<string> {
   return new Promise(resolve => rl.question(q, answer => { rl.close(); resolve(answer.trim()) }))
 }
 
+const DEFAULT_FORBIDDEN_ACTIONS = [
+  'Merge to main without PR review',
+  'Push directly to main',
+  'Deploy to production',
+  'Delete or modify existing tests without approval',
+]
+
 function buildPlanFromDraft(key: string, draft: TicketDraft, rawImplementation: string): JiraPlan {
+  const verificationSteps = draft.goal.successCriteria.length > 0
+    ? draft.goal.successCriteria.map(c => `Verify: ${c}`)
+    : ['Run existing tests and confirm they pass', 'Manually verify the feature works as described']
   return {
     ticketKey: key,
     autonomyLevel: 2,
@@ -97,10 +108,16 @@ function buildPlanFromDraft(key: string, draft: TicketDraft, rawImplementation: 
     context: [draft.problem],
     acceptanceCriteria: draft.goal.successCriteria,
     implementationNotes: rawImplementation.split('\n').map(l => l.trim()).filter(Boolean),
-    verification: draft.goal.successCriteria.map(c => `Verify: ${c}`),
+    verification: verificationSteps,
     risks: draft.risks,
-    forbiddenActions: [],
+    forbiddenActions: DEFAULT_FORBIDDEN_ACTIONS,
   }
+}
+
+function draftWithRepoLabel(draft: TicketDraft): TicketDraft {
+  const repoLabel = draft.relatedRepos[0] ? `repo:${draft.relatedRepos[0]}` : null
+  if (!repoLabel || draft.labels.some(l => l.startsWith('repo:'))) return draft
+  return { ...draft, labels: [...draft.labels, repoLabel] }
 }
 
 export async function runDraftCommand(args: string[]): Promise<void> {
@@ -142,17 +159,37 @@ export async function runDraftCommand(args: string[]): Promise<void> {
   // Create parent Story first, linked to epic if detected
   let parentKey: string | undefined
   if (output.parentStory) {
-    parentKey = await createIssueFromDraft(parsed.projectKey, output.parentStory, writePermit, output.epicKey)
+    const story = draftWithRepoLabel(output.parentStory)
+    parentKey = await createIssueFromDraft(parsed.projectKey, story, writePermit, output.epicKey)
     const epicNote = output.epicKey ? ` → ${output.epicKey}` : ''
-    console.log(`Created Story ${parentKey}: ${output.parentStory.summary}${epicNote}`)
+    console.log(`Created Story ${parentKey}: ${story.summary}${epicNote}`)
   }
 
   // Create Tasks under the Story
   const created: Array<{ key: string; draft: TicketDraft }> = []
   for (const draft of output.tasks) {
-    const key = await createIssueFromDraft(parsed.projectKey, draft, writePermit, parentKey)
-    console.log(`  Created ${key}: ${draft.summary}`)
-    created.push({ key, draft })
+    const labeled = draftWithRepoLabel(draft)
+    const key = await createIssueFromDraft(parsed.projectKey, labeled, writePermit, parentKey)
+    console.log(`  Created ${key}: ${labeled.summary}`)
+    created.push({ key, draft: labeled })
+  }
+
+  // Wire up task dependency links
+  if (output.taskLinks && output.taskLinks.length > 0) {
+    const linkPermit = assertJiraWritePolicy({
+      action: 'link-issue',
+      projectKey: parsed.projectKey,
+      configuredProject: config.project,
+      email: config.email
+    })
+    for (const { fromIndex, blocksIndex } of output.taskLinks) {
+      const from = created[fromIndex]
+      const blocks = created[blocksIndex]
+      if (from && blocks) {
+        await createIssueLinkInJira(from.key, blocks.key, linkPermit)
+        console.log(`  Linked ${from.key} → blocks → ${blocks.key}`)
+      }
+    }
   }
 
   // Generate Agent Q plans for each task

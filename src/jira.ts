@@ -588,6 +588,17 @@ export async function transitionTicket(ticketKey: string, statusName: 'In Progre
   })
 }
 
+export async function createIssueLinkInJira(inwardKey: string, outwardKey: string, permit: JiraWritePermit): Promise<void> {
+  assertPermit(permit, 'link-issue')
+  const config = requireJiraConfig()
+  const res = await fetch(`${config.baseUrl}/rest/api/3/issueLink`, {
+    method: 'POST',
+    headers: { Authorization: authHeader(config.email), Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: { name: 'Blocks' }, inwardIssue: { key: inwardKey }, outwardIssue: { key: outwardKey } })
+  })
+  if (!res.ok) throw new Error(`Jira link error ${res.status}: ${await res.text()}`)
+}
+
 export async function commentOnTicket(ticketKey: string, text: string, permit: JiraWritePermit): Promise<void> {
   assertPermit(permit, 'comment')
   const config = requireJiraConfig()

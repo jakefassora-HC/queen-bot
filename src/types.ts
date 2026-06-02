@@ -176,6 +176,7 @@ export interface DraftOutput {
   epicKey?: string
   parentStory?: TicketDraft
   tasks: TicketDraft[]
+  taskLinks?: Array<{ fromIndex: number; blocksIndex: number }>
 }
 
 export interface TicketDraftRequest {
