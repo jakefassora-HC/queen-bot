@@ -28,9 +28,9 @@ test('buildClaudeHandoffPrompt tells workers to use Superpowers and parallel age
   const prompt = buildClaudeHandoffPrompt('AISOL-465')
 
   expect(prompt).toContain('Use Superpowers')
-  expect(prompt).toContain('dispatch parallel agents')
+  expect(prompt).toContain('Dispatch parallel agents')
   expect(prompt).toContain('independent')
-  expect(prompt).toContain('bounded autonomy')
+  expect(prompt).toContain('approved contract')
 })
 
 test('cmux handoff says execution must come from Jira plan and worktree', () => {
@@ -141,10 +141,10 @@ test('buildClaudeHandoffPrompt injects Goal when contract has a non-null goal', 
     }
   })
 
-  expect(prompt).toContain('# Goal (source of truth)')
-  const goalIndex = prompt.indexOf('# Goal (source of truth)')
+  expect(prompt).toContain('## Goal (source of truth)')
   const agentIndex = prompt.indexOf('You are Agent Q')
-  expect(goalIndex).toBeLessThan(agentIndex)
+  const goalIndex = prompt.indexOf('## Goal (source of truth)')
+  expect(agentIndex).toBeLessThan(goalIndex)
 })
 
 test('buildClaudeHandoffPrompt does not inject Goal when contract has goal: null', () => {
@@ -170,13 +170,15 @@ test('buildClaudeHandoffPrompt does not inject Goal when contract has goal: null
     }
   })
 
-  expect(prompt).not.toContain('# Goal (source of truth)')
+  expect(prompt).not.toContain('## Goal (source of truth)')
 })
 
 test('formatCmuxCommand previews the exact command that will run', () => {
-  expect(formatCmuxCommand('/Users/jakefassora/projects/agent-queue', 'AISOL-465', 'cmux')).toBe(
-    `cmux new-workspace --cwd /Users/jakefassora/projects/agent-queue --command ${JSON.stringify(commandWithPrompt('cmux'))}`
-  )
+  const result = formatCmuxCommand('/Users/jakefassora/projects/agent-queue', 'AISOL-465', 'cmux')
+  expect(result).toContain('cmux new-workspace --cwd /Users/jakefassora/projects/agent-queue --command')
+  expect(result).toContain('rename-workspace AISOL-465')
+  expect(result).toContain('claude --name AISOL-465')
+  expect(result).toContain('agent-queue show AISOL-465')
 })
 
 function commandWithPrompt(cmuxBinary: string): string {
@@ -193,4 +195,51 @@ test('canStartCmuxFromEnv requires an inside-cmux shell unless explicitly overri
   expect(canStartCmuxFromEnv({})).toBe(false)
   expect(canStartCmuxFromEnv({ CMUX_WORKSPACE_ID: 'workspace:1' })).toBe(true)
   expect(canStartCmuxFromEnv({ AGENT_QUEUE_ALLOW_EXTERNAL_CMUX: '1' })).toBe(true)
+})
+
+const sampleContract = (autonomyLevel: number): ExecutionContract => ({
+  ticketKey: 'AISOL-651',
+  repo: 'jakefassora-HC/queen-bot',
+  branch: 'agent/AISOL-651',
+  worktreePath: '/tmp/.agent-worktrees/AISOL-651',
+  engine: 'claude',
+  autonomyLevel: autonomyLevel as ExecutionContract['autonomyLevel'],
+  approvedAt: '2026-06-01T00:00:00.000Z',
+  goal: null,
+  plan: {
+    ticketKey: 'AISOL-651',
+    goal: 'Goal',
+    context: ['Context'],
+    acceptanceCriteria: ['Done'],
+    implementationNotes: [],
+    verification: ['Test'],
+    risks: [],
+    forbiddenActions: ['Do not merge.'],
+    autonomyLevel: autonomyLevel as ExecutionContract['autonomyLevel']
+  }
+})
+
+describe('buildCmuxAgentCommand auto mode', () => {
+  it('includes --dangerously-skip-permissions for autonomy level 2', () => {
+    const command = buildCmuxAgentCommand('AISOL-651', 'cmux', sampleContract(2))
+    expect(command).toContain('claude --dangerously-skip-permissions --name AISOL-651')
+  })
+
+  it('does not include --dangerously-skip-permissions for autonomy level 1', () => {
+    const command = buildCmuxAgentCommand('AISOL-651', 'cmux', sampleContract(1))
+    expect(command).not.toContain('--dangerously-skip-permissions')
+    expect(command).toContain('claude --name AISOL-651')
+  })
+})
+
+describe('buildClaudeHandoffPrompt formatting', () => {
+  it('sections are separated by double newlines not spaces', () => {
+    const prompt = buildClaudeHandoffPrompt('AISOL-651')
+    expect(prompt).toContain('\n\n')
+    const lines = prompt.split('\n')
+    const agentLine = lines.findIndex(l => l.startsWith('You are Agent Q'))
+    const rulesLine = lines.findIndex(l => l.includes('Execution Rules'))
+    expect(agentLine).not.toBe(rulesLine)
+    expect(rulesLine).toBeGreaterThan(agentLine)
+  })
 })
