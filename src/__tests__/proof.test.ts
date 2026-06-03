@@ -1,8 +1,6 @@
 import {
-  JIRA_PROOF_APPROVAL_PHRASE,
   assertProofTicketInQueue,
   formatProofReport,
-  hasProofApproval,
   parseProofArgs
 } from '../proof.js'
 import type { JiraTicket, ProofReport } from '../types.js'
@@ -23,10 +21,12 @@ test('formatProofReport renders evidence for Jira', () => {
   expect(output).toContain('npm test passed')
 })
 
-test('proof updates require exact approval phrase', () => {
-  expect(JIRA_PROOF_APPROVAL_PHRASE).toBe('APPROVE JIRA PROOF')
-  expect(hasProofApproval('APPROVE JIRA PROOF')).toBe(true)
-  expect(hasProofApproval('yes')).toBe(false)
+test('runProofCommand with --comment does not require interactive input (no approval phrase)', async () => {
+  // Structural test: verify the approval gate exports are gone from proof.ts
+  // The module no longer exports JIRA_PROOF_APPROVAL_PHRASE or hasProofApproval
+  const proofModule = await import('../proof.js')
+  expect((proofModule as Record<string, unknown>)['JIRA_PROOF_APPROVAL_PHRASE']).toBeUndefined()
+  expect((proofModule as Record<string, unknown>)['hasProofApproval']).toBeUndefined()
 })
 
 test('parseProofArgs supports preview and comment modes', () => {

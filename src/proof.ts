@@ -1,10 +1,12 @@
 import { readFile } from 'fs/promises'
-import readline from 'readline'
+import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { getJiraConfig } from './config.js'
 import { openCmuxExecutionWorkspace } from './cmux.js'
 import { buildExecutionContract } from './execution-command.js'
 import { commentOnTicket, transitionTicket } from './jira.js'
 import { assertJiraWritePolicy } from './jira-write-policy.js'
+import { storyBrainPath } from './local-plan.js'
+import { appendProofEntry, updateTaskGraphDone, setStoryStatus, parseTaskGraphStatus } from './story-brain.js'
 import type { JiraTicket, ProofReport } from './types.js'
 
 export interface ProofArgs {
@@ -12,19 +14,8 @@ export interface ProofArgs {
   comment: boolean
 }
 
-export const JIRA_PROOF_APPROVAL_PHRASE = 'APPROVE JIRA PROOF'
-
-export function hasProofApproval(answer: string): boolean {
-  return answer.trim() === JIRA_PROOF_APPROVAL_PHRASE
-}
-
 function bullets(items: string[]): string {
   return items.length ? items.map(item => `- ${item}`).join('\n') : '- none'
-}
-
-function prompt(question: string): Promise<string> {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
-  return new Promise(resolve => rl.question(question, answer => { rl.close(); resolve(answer.trim()) }))
 }
 
 export function parseProofArgs(args: string[]): ProofArgs {
@@ -110,17 +101,11 @@ export async function runProofCommand(args: string[], tickets: JiraTicket[]): Pr
   console.log(formatted)
 
   if (!parsed.comment) {
-    console.log(`\nPreview only. Re-run with --comment to request a Jira comment, then type "${JIRA_PROOF_APPROVAL_PHRASE}" after reviewing the proof.`)
+    console.log('\nPreview only. Re-run with --comment to post proof to Jira.')
     return
   }
 
   const permit = assertJiraWritePolicy({ action: 'comment', ticket, tickets, email: getJiraConfig().email })
-  const answer = await prompt(`\nComment this proof on ${report.ticketKey}? Type "${JIRA_PROOF_APPROVAL_PHRASE}" to approve: `)
-  if (!hasProofApproval(answer)) {
-    console.log('Skipped Jira proof comment.')
-    return
-  }
-
   await commentOnTicket(report.ticketKey, formatted, permit)
   console.log(`Commented Agent Q proof on ${report.ticketKey}.`)
 
@@ -131,6 +116,19 @@ export async function runProofCommand(args: string[], tickets: JiraTicket[]): Pr
     console.log(`Transitioned ${report.ticketKey} to Done.`)
   } catch (err) {
     console.log(`Could not transition to Done: ${err instanceof Error ? err.message : err}`)
+  }
+
+  // Update story brain if it exists
+  const storyBrainFile = storyBrainPath(ticket)
+  if (existsSync(storyBrainFile)) {
+    let md = readFileSync(storyBrainFile, 'utf8')
+    md = updateTaskGraphDone(md, report.ticketKey)
+    md = appendProofEntry(md, `${report.ticketKey}: ${report.summary.slice(0, 120)} (${new Date().toISOString().slice(0, 10)})`)
+    const { total, done } = parseTaskGraphStatus(md)
+    if (done === total) md = setStoryStatus(md, 'done')
+    else md = setStoryStatus(md, 'in-progress')
+    writeFileSync(storyBrainFile, md, 'utf8')
+    console.log(`Updated story brain: ${storyBrainFile}`)
   }
 
   // Auto-progression: open cmux workspaces for any tickets now unblocked
