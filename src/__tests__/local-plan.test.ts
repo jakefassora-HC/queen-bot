@@ -1,9 +1,9 @@
-import { mkdtempSync, readFileSync } from 'fs'
+import { mkdtempSync, readFileSync, rmSync } from 'fs'
 import { tmpdir } from 'os'
 import path from 'path'
 import { buildPlanFromTicket } from '../plan-command.js'
-import { localPlanPath, renderLocalPlan, writeLocalPlan } from '../local-plan.js'
-import type { JiraTicket } from '../types.js'
+import { localPlanPath, renderLocalPlan, writeLocalPlan, storyBrainPath, writeStoryBrain } from '../local-plan.js'
+import type { JiraTicket, StoryBrain } from '../types.js'
 
 const ticket: JiraTicket = {
   id: '1',
@@ -50,4 +50,41 @@ test('writeLocalPlan writes the local markdown plan and returns its path', () =>
 
   expect(writtenPath).toBe(path.join(root, 'Codefied', 'human-road-warrior', 'AISOL-592', 'plan.md'))
   expect(readFileSync(writtenPath, 'utf8')).toContain('# AISOL-592 Agent Q Full Plan')
+})
+
+describe('storyBrainPath', () => {
+  it('returns story.md under the parent ticket key directory', () => {
+    const testTicket = { key: 'AISOL-651', summary: 'Story', repo: 'Codefied/AI-Analysts' } as JiraTicket
+    const p = storyBrainPath(testTicket, '/tmp/plans')
+    expect(p).toBe('/tmp/plans/Codefied/AI-Analysts/AISOL-651/story.md')
+  })
+
+  it('accepts a plain string key', () => {
+    const p = storyBrainPath('AISOL-651', '/tmp/plans')
+    expect(p).toMatch(/AISOL-651\/story\.md$/)
+  })
+})
+
+describe('writeStoryBrain', () => {
+  it('writes a story.md file and returns the path', () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'aq-test-'))
+    try {
+      const testTicket = { key: 'AISOL-651', summary: 'Story', repo: 'Codefied/AI-Analysts' } as JiraTicket
+      const brain: StoryBrain = {
+        parentKey: 'AISOL-651',
+        summary: 'Auto-sync AI Toolshed',
+        goal: { why: 'Test why', constraints: [], nonGoals: [], successCriteria: [] },
+        taskGraph: [{ key: 'AISOL-652', summary: 'DB schema', done: false }],
+        planSections: [{ taskKey: 'AISOL-652', taskSummary: 'DB schema', content: 'Step 1.' }],
+        worktrees: [],
+        proof: [],
+        status: 'pending',
+      }
+      const written = writeStoryBrain(testTicket, brain, tmpDir)
+      expect(written).toMatch(/story\.md$/)
+      expect(readFileSync(written, 'utf8')).toContain('# Story AISOL-651')
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true })
+    }
+  })
 })

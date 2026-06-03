@@ -1,7 +1,8 @@
 import { mkdirSync, writeFileSync } from 'fs'
 import path from 'path'
 import { renderJiraPlan } from './jira-plan.js'
-import type { JiraPlan, JiraTicket } from './types.js'
+import { renderStoryBrain } from './story-brain.js'
+import type { JiraPlan, JiraTicket, StoryBrain } from './types.js'
 
 export const DEFAULT_PLANS_DIR = process.env.AGENT_QUEUE_PLANS_DIR ?? path.join(process.env.HOME ?? '.', '.agent-queue', 'plans')
 
@@ -90,5 +91,20 @@ export function writeLocalPlan(ticket: JiraTicket, plan: JiraPlan, root = DEFAUL
   const filePath = localPlanPath(ticket, root)
   mkdirSync(path.dirname(filePath), { recursive: true })
   writeFileSync(filePath, renderLocalPlan(ticket, { ...plan, localPlanPath: filePath }), 'utf8')
+  return filePath
+}
+
+export function storyBrainPath(parentTicketOrKey: JiraTicket | string, root = DEFAULT_PLANS_DIR): string {
+  const parentKey = normalizeTicketKey(
+    typeof parentTicketOrKey === 'string' ? parentTicketOrKey : parentTicketOrKey.key
+  )
+  const projectSegments = projectPathForPlan(parentTicketOrKey)
+  return path.join(root, ...projectSegments, parentKey, 'story.md')
+}
+
+export function writeStoryBrain(parentTicket: JiraTicket | string, brain: StoryBrain, root = DEFAULT_PLANS_DIR): string {
+  const filePath = storyBrainPath(parentTicket, root)
+  mkdirSync(path.dirname(filePath), { recursive: true })
+  writeFileSync(filePath, renderStoryBrain(brain), 'utf8')
   return filePath
 }
