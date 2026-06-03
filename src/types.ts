@@ -100,6 +100,23 @@ export interface TicketGoal {
   successCriteria: string[]
 }
 
+export interface StoryTaskEntry {
+  key: string
+  summary: string
+  done: boolean
+}
+
+export interface StoryBrain {
+  parentKey: string
+  summary: string
+  goal: TicketGoal
+  taskGraph: StoryTaskEntry[]
+  planSections: Array<{ taskKey: string; taskSummary: string; content: string }>
+  worktrees: string[]
+  proof: string[]
+  status: 'pending' | 'in-progress' | 'done'
+}
+
 export type ExecutionEngine = 'claude' | 'codex' | 'ruflo' | 'manual'
 export type ContextMode = 'brief' | 'standard' | 'deep'
 export type JiraWriteAction = 'comment' | 'update-description' | 'create-ticket' | 'transition' | 'link-issue' | 'upsert-goal'
