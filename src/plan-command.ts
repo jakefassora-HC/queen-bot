@@ -3,10 +3,10 @@ import { getJiraConfig } from './config.js'
 import { renderJiraPlan } from './jira-plan.js'
 import { updateTicketDescription, upsertTextToDescriptionAdf } from './jira.js'
 import { assertJiraWritePolicy } from './jira-write-policy.js'
-import { localPlanPath, writeLocalPlan } from './local-plan.js'
+import { localPlanPath, writeLocalPlan, storyBrainPath, writeStoryBrain } from './local-plan.js'
 import { resolveTicketSelection } from './queue-command.js'
 import { parseGoal } from './jira-goal.js'
-import type { JiraAdfDocument, JiraPlan, JiraTicket } from './types.js'
+import type { JiraAdfDocument, JiraPlan, JiraTicket, StoryBrain, StoryTaskEntry } from './types.js'
 
 export interface PlanArgs {
   selection: string
@@ -52,20 +52,114 @@ export function buildPlanFromTicket(ticket: JiraTicket): JiraPlan {
   }
 }
 
+export function isStoryTicket(ticket: JiraTicket): boolean {
+  if (ticket.subtasks && ticket.subtasks.length > 0) return true
+  if (ticket.issueLinks?.some(l => l.type === 'is parent of' && l.direction === 'outward')) return true
+  return false
+}
+
+export function getParentKey(ticket: JiraTicket): string | null {
+  return ticket.parent?.key ?? null
+}
+
+export function buildJiraDescriptionWithBrainLink(ticket: JiraTicket, brainPath: string): string {
+  const description = ticket.description ?? ''
+  const goalStart = description.indexOf('## Goal')
+  if (goalStart === -1) return `${description.trim()}\n\nStory brain: ${brainPath}`
+  const afterGoal = description.slice(goalStart)
+  const nextSection = afterGoal.indexOf('\n## ', 8)
+  const goalOnly = nextSection === -1 ? afterGoal : afterGoal.slice(0, nextSection)
+  return `${goalOnly.trim()}\n\nStory brain: ${brainPath}`
+}
+
+export function buildStoryBrainFromTickets(
+  parentTicket: JiraTicket,
+  childTickets: JiraTicket[],
+  planContent: string
+): StoryBrain {
+  const goal = parseGoal(parentTicket.description ?? '')
+  const taskGraph: StoryTaskEntry[] = childTickets.map(t => ({
+    key: t.key,
+    summary: t.summary,
+    done: t.status === 'Done',
+  }))
+
+  const planSections = childTickets.map(t => {
+    const sectionStart = planContent.indexOf(`(${t.key})`)
+    if (sectionStart === -1) {
+      return { taskKey: t.key, taskSummary: t.summary, content: '' }
+    }
+    const lineStart = planContent.lastIndexOf('\n', sectionStart)
+    const nextSection = planContent.indexOf('\n### Task', lineStart + 1)
+    const content = nextSection === -1
+      ? planContent.slice(lineStart).trim()
+      : planContent.slice(lineStart, nextSection).trim()
+    return { taskKey: t.key, taskSummary: t.summary, content }
+  })
+
+  return {
+    parentKey: parentTicket.key,
+    summary: parentTicket.summary,
+    goal: goal ?? { why: parentTicket.summary, constraints: [], nonGoals: [], successCriteria: [] },
+    taskGraph,
+    planSections,
+    worktrees: [],
+    proof: [],
+    status: 'pending',
+  }
+}
+
 export function buildPlanDescriptionAdf(ticket: JiraTicket, plan: JiraPlan): JiraAdfDocument {
   return upsertTextToDescriptionAdf(ticket.descriptionAdf, renderJiraPlan(plan), 'Agent Q Plan')
 }
 
-export async function writePlanWithApproval(ticket: JiraTicket, plan: JiraPlan, tickets?: JiraTicket[]): Promise<boolean> {
+export async function writePlanWithApproval(
+  ticket: JiraTicket,
+  plan: JiraPlan,
+  tickets?: JiraTicket[]
+): Promise<boolean> {
+  const parentKey = getParentKey(ticket)
+  const parentTicket = parentKey ? tickets?.find(t => t.key === parentKey) : undefined
+
+  // Determine if this ticket should use a story brain
+  const brainParent = parentTicket ?? (isStoryTicket(ticket) ? ticket : null)
+  const brainPath = brainParent ? storyBrainPath(brainParent) : null
+
   const rendered = renderJiraPlan(plan)
   console.log(rendered)
+  if (brainPath) {
+    console.log(`\nStory brain path: ${brainPath}`)
+  }
+
   const answer = await prompt(`\nWrite this plan to ${ticket.key}? Type "${JIRA_PLAN_APPROVAL_PHRASE}" to approve: `)
   if (!hasJiraPlanApproval(answer)) return false
 
   const permit = assertJiraWritePolicy({ action: 'update-description', ticket, tickets, email: getJiraConfig().email })
+
+  // Always write local plan.md
   const writtenPath = writeLocalPlan(ticket, plan)
-  await updateTicketDescription(ticket.key, buildPlanDescriptionAdf(ticket, { ...plan, localPlanPath: writtenPath }), permit)
-  console.log(`Local full plan: ${writtenPath}`)
+
+  if (brainPath && brainParent) {
+    // Write story.md
+    const children = tickets?.filter(t => t.parent?.key === brainParent.key) ?? []
+    const brain = buildStoryBrainFromTickets(brainParent, children, rendered)
+    writeStoryBrain(brainParent, brain)
+    console.log(`Story brain written: ${brainPath}`)
+
+    // Jira gets Goal + brain link only
+    const jiraDescription = buildJiraDescriptionWithBrainLink(ticket, brainPath)
+    const cleanAdf = upsertTextToDescriptionAdf(
+      { version: 1, type: 'doc', content: [] },
+      jiraDescription,
+      'Goal'
+    )
+    await updateTicketDescription(ticket.key, cleanAdf, permit)
+  } else {
+    // Standalone task: existing behavior
+    await updateTicketDescription(ticket.key, buildPlanDescriptionAdf(ticket, { ...plan, localPlanPath: writtenPath }), permit)
+  }
+
+  console.log(`Local plan: ${writtenPath}`)
   return true
 }
 

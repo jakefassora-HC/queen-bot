@@ -3,7 +3,11 @@ import {
   buildPlanDescriptionAdf,
   buildPlanFromTicket,
   hasJiraPlanApproval,
-  parsePlanArgs
+  parsePlanArgs,
+  isStoryTicket,
+  getParentKey,
+  buildJiraDescriptionWithBrainLink,
+  buildStoryBrainFromTickets,
 } from '../plan-command.js'
 import { adfToPlainText, appendTextToDescriptionAdf } from '../jira.js'
 import type { JiraTicket } from '../types.js'
@@ -61,4 +65,54 @@ test('buildPlanDescriptionAdf writes the approved Agent Q plan into the descript
   expect(text.match(/## Agent Q Plan/g)).toHaveLength(1)
   expect(text).toContain('Handoff Documentation or Onboarding?')
   expect(text).not.toContain('Old goal')
+})
+
+describe('isStoryTicket', () => {
+  it('returns true when ticket has subtasks', () => {
+    const t = { key: 'AISOL-651', summary: 'Story', subtasks: [{ key: 'AISOL-652', summary: 'DB', status: 'To Do' }] } as unknown as JiraTicket
+    expect(isStoryTicket(t)).toBe(true)
+  })
+
+  it('returns false for a plain task with no subtasks', () => {
+    const t = { key: 'AISOL-652', summary: 'Task', subtasks: [] } as unknown as JiraTicket
+    expect(isStoryTicket(t)).toBe(false)
+  })
+
+  it('returns false when subtasks is undefined', () => {
+    const t = { key: 'AISOL-652', summary: 'Task' } as unknown as JiraTicket
+    expect(isStoryTicket(t)).toBe(false)
+  })
+})
+
+describe('getParentKey', () => {
+  it('returns parent key when present', () => {
+    const t = { key: 'AISOL-652', parent: { key: 'AISOL-651', summary: 'Story', status: 'To Do' } } as unknown as JiraTicket
+    expect(getParentKey(t)).toBe('AISOL-651')
+  })
+
+  it('returns null when no parent', () => {
+    const t = { key: 'AISOL-651', summary: 'Story' } as unknown as JiraTicket
+    expect(getParentKey(t)).toBeNull()
+  })
+})
+
+describe('buildJiraDescriptionWithBrainLink', () => {
+  it('extracts Goal section and appends brain link', () => {
+    const t = {
+      key: 'AISOL-652',
+      summary: 'DB schema',
+      description: '## Goal\n\n### Why\nBecause.\n\n### Success Criteria\n- thing\n\n## Agent Q Plan\n\nstuff',
+    } as unknown as JiraTicket
+    const result = buildJiraDescriptionWithBrainLink(t, '/tmp/story.md')
+    expect(result).toContain('## Goal')
+    expect(result).toContain('Because.')
+    expect(result).not.toContain('## Agent Q Plan')
+    expect(result).toContain('Story brain: /tmp/story.md')
+  })
+
+  it('appends brain link when no Goal section present', () => {
+    const t = { key: 'AISOL-652', summary: 'Task', description: 'Some description.' } as unknown as JiraTicket
+    const result = buildJiraDescriptionWithBrainLink(t, '/tmp/story.md')
+    expect(result).toContain('Story brain: /tmp/story.md')
+  })
 })
