@@ -113,6 +113,70 @@ test('execution handoff does not ask for another planning approval after approva
   expect(prompt).not.toContain('propose the plan and wait')
 })
 
+test('execution handoff points workers at the local plan without dumping plan body', () => {
+  const prompt = buildClaudeHandoffPrompt('AISOL-465', {
+    ticketKey: 'AISOL-465',
+    repo: 'jakefassora-HC/queen-bot',
+    branch: 'agent/AISOL-465',
+    worktreePath: '/tmp/.agent-worktrees/AISOL-465',
+    engine: 'claude',
+    autonomyLevel: 2,
+    approvedAt: '2026-05-28T00:00:00.000Z',
+    goal: null,
+    plan: {
+      ticketKey: 'AISOL-465',
+      goal: 'DO NOT DUMP PLAN GOAL',
+      context: ['DO NOT DUMP HUGE JIRA CONTEXT'],
+      acceptanceCriteria: ['DO NOT DUMP ACCEPTANCE CRITERIA'],
+      implementationNotes: [],
+      verification: ['Test'],
+      risks: [],
+      forbiddenActions: ['Do not merge.'],
+      autonomyLevel: 2,
+      localPlanPath: '/tmp/plans/Codefied/queen-bot/AISOL-465/plan.md'
+    }
+  })
+
+  expect(prompt).toContain('Local plan: /tmp/plans/Codefied/queen-bot/AISOL-465/plan.md')
+  expect(prompt).toContain('Read these files for continuity')
+  expect(prompt).not.toContain('DO NOT DUMP PLAN GOAL')
+  expect(prompt).not.toContain('DO NOT DUMP HUGE JIRA CONTEXT')
+  expect(prompt).not.toContain('DO NOT DUMP ACCEPTANCE CRITERIA')
+})
+
+test('execution handoff includes existing WorkGraph continuity file pointers', () => {
+  const prompt = buildClaudeHandoffPrompt('AISOL-465', {
+    ticketKey: 'AISOL-465',
+    repo: 'jakefassora-HC/queen-bot',
+    branch: 'agent/AISOL-465',
+    worktreePath: '/tmp/.agent-worktrees/AISOL-465',
+    engine: 'claude',
+    autonomyLevel: 2,
+    approvedAt: '2026-05-28T00:00:00.000Z',
+    goal: null,
+    plan: {
+      ticketKey: 'AISOL-465',
+      goal: 'Goal',
+      context: ['Context'],
+      acceptanceCriteria: ['Done'],
+      implementationNotes: [],
+      verification: ['Test'],
+      risks: [],
+      forbiddenActions: ['Do not merge.'],
+      autonomyLevel: 2,
+      localPlanPath: '/tmp/plans/Codefied/queen-bot/AISOL-465/plan.md'
+    }
+  }, {
+    plansRoot: '/tmp/plans',
+    exists: filePath => filePath.endsWith('/AISOL-465/story.md') || filePath.endsWith('/AISOL-465/workgraph.md')
+  })
+
+  expect(prompt).toContain('Story brain: /tmp/plans/jakefassora-HC/queen-bot/AISOL-465/story.md')
+  expect(prompt).toContain('WorkGraph continuity: /tmp/plans/jakefassora-HC/queen-bot/AISOL-465/workgraph.md')
+  expect(prompt).not.toContain('# WorkGraph AISOL-465')
+  expect(prompt).not.toContain('## Task Graph')
+})
+
 test('buildClaudeHandoffPrompt injects Goal when contract has a non-null goal', () => {
   const prompt = buildClaudeHandoffPrompt('AISOL-465', {
     ticketKey: 'AISOL-465',

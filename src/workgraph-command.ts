@@ -58,6 +58,16 @@ function ticketDone(ticket: JiraTicket | undefined): boolean {
   return Boolean(ticket && /done|closed|resolved/i.test(ticket.status))
 }
 
+function linkBlockers(ticket: JiraTicket): string[] {
+  return (ticket.issueLinks ?? [])
+    .filter(link => /blocks/i.test(link.type))
+    .map(link => link.key)
+}
+
+function blockerKeys(ticket: JiraTicket): string[] {
+  return Array.from(new Set([...parseWorkGraphMetadata(ticket).blockedBy, ...linkBlockers(ticket)]))
+}
+
 export function resolveWaveTickets(parentKey: string, wave: number, tickets: JiraTicket[]): WaveResolution {
   const byKey = new Map(tickets.map(ticket => [ticket.key, ticket]))
   const candidates = childTicketsFor(parentKey, tickets)
@@ -66,7 +76,7 @@ export function resolveWaveTickets(parentKey: string, wave: number, tickets: Jir
   const blocked: Array<{ ticketKey: string; reason: string }> = []
 
   for (const ticket of candidates) {
-    const blockers = parseWorkGraphMetadata(ticket).blockedBy
+    const blockers = blockerKeys(ticket)
       .filter(key => !ticketDone(byKey.get(key)))
     if (blockers.length > 0) {
       blocked.push({ ticketKey: ticket.key, reason: `blocked by ${blockers.join(', ')}` })
@@ -101,7 +111,8 @@ export function formatGraphStatus(parent: JiraTicket, tickets: JiraTicket[]): st
       lines.push(`  ${lane}`)
       for (const ticket of byLane.get(lane) ?? []) {
         const metadata = parseWorkGraphMetadata(ticket)
-        const blockers = metadata.blockedBy.length ? ` | blocked by: ${metadata.blockedBy.join(', ')}` : ''
+        const blockerList = blockerKeys(ticket)
+        const blockers = blockerList.length ? ` | blocked by: ${blockerList.join(', ')}` : ''
         const parallel = metadata.canRunWith.length ? ` | can run with: ${metadata.canRunWith.join(', ')}` : ''
         lines.push(`  - ${ticket.key} (${ticket.status || 'unknown'}) ${ticket.summary}${blockers}${parallel}`)
       }

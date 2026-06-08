@@ -37,6 +37,8 @@ npm start
 
 The default view opens the Queen Bot planning dashboard with Current Sprint and Backlog sections, grouped-by-epic checkbox rows, readiness scores, parent context, and plan-next hints. It intentionally avoids tables so Claude does not compress the queue into a hard-to-read block. The dashboard shows every ticket in the queue by default.
 
+Queen follows Jira queue pagination, so large assigned work graphs do not silently stop at the first page of tickets.
+
 Print the dashboard without entering terminal mode:
 
 ```bash
@@ -107,6 +109,21 @@ npm start -- execute-ready AISOL-465 AISOL-540 --start
 
 Execution start requires every selected ticket to have a valid Agent Q plan, repo label, local full plan file, executable readiness score, allowed work-graph size policy, and autonomy level `2` or `3`. It also requires typing `APPROVE EXECUTION`.
 
+Preview a parent/epic WorkGraph by wave and lane:
+
+```bash
+npm start -- graph-status AISOL-448
+```
+
+Preview or start only the unblocked tickets in one wave:
+
+```bash
+npm start -- execute-wave AISOL-448 --wave 1
+npm start -- execute-wave AISOL-448 --wave 1 --start
+```
+
+`execute-wave` uses compact WorkGraph metadata from Jira descriptions plus formal Jira `Blocks` links. Blocked tickets are listed, and only ready tickets are passed through to `execute-ready`.
+
 Each cmux workspace is named by ticket key and opens an interactive Claude session with an Agent Q handoff prompt. Approved execution workers start by reading a compact packet instead of dumping the full Jira ticket:
 
 ```bash
@@ -114,6 +131,8 @@ npm start -- context AISOL-465 --brief
 ```
 
 That packet includes the execution contract, Super PRD, linked work, and a pointer back to `agent-queue show <ticket-key>` for debugging. Claude uses Superpowers as the planning/TDD/debugging/verification protocol, then dispatches parallel agents for independent work inside the approved contract.
+
+The cmux handoff also points workers to local continuity files when they exist: the ticket `plan.md`, parent `story.md`, and WorkGraph `workgraph.md`. These are file pointers only; Queen does not paste full local plans or graph bodies into the startup prompt.
 
 The packet also includes:
 

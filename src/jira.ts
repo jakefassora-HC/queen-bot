@@ -264,16 +264,36 @@ export async function fetchEpics(projectKey: string): Promise<Array<{ key: strin
   return data.issues.map(i => ({ key: i.key, summary: i.fields.summary }))
 }
 
+export async function fetchQueueIssues(
+  config: JiraConfig,
+  auth: string,
+  fieldNames: Record<string, string>,
+  fetcher: Fetcher = fetch
+): Promise<JiraTicket[]> {
+  const issues: JiraTicket[] = []
+  let nextPageToken: string | undefined
+  let pageCount = 0
+
+  do {
+    pageCount += 1
+    const url = buildQueueSearchUrl(config.baseUrl, buildQueueJql(config.project), 50, nextPageToken)
+    const res = await fetcher(url, { headers: { Authorization: auth, Accept: 'application/json' } })
+    if (!res.ok) throw new Error(`Jira error ${res.status}: ${await res.text()}`)
+    const data = await res.json() as { issues?: unknown[]; nextPageToken?: string }
+    issues.push(...(data.issues ?? []).map(i => parseTicket(i as Record<string, unknown>, fieldNames)))
+    nextPageToken = data.nextPageToken
+    if (pageCount > 20) throw new Error('Jira queue pagination exceeded 20 pages; narrow JIRA_PROJECT or close completed tickets.')
+  } while (nextPageToken)
+
+  return issues
+}
+
 export async function fetchQueue(): Promise<JiraTicket[]> {
   const config = requireJiraConfig()
   const auth = authHeader(config.email)
   await verifyJiraAuth(config, auth)
   const fieldNames = await fetchFieldNameMap(config, auth)
-  const url = buildQueueSearchUrl(config.baseUrl, buildQueueJql(config.project), 20)
-  const res = await fetch(url, { headers: { Authorization: auth, Accept: 'application/json' } })
-  if (!res.ok) throw new Error(`Jira error ${res.status}: ${await res.text()}`)
-  const data = await res.json() as { issues: unknown[] }
-  return data.issues.map(i => parseTicket(i as Record<string, unknown>, fieldNames))
+  return fetchQueueIssues(config, auth, fieldNames)
 }
 
 export function buildQueueJql(project?: string): string {
@@ -281,12 +301,13 @@ export function buildQueueJql(project?: string): string {
   return `${scope}assignee = currentUser() AND statusCategory != Done ORDER BY priority DESC`
 }
 
-export function buildQueueSearchUrl(baseUrl: string, jql: string, maxResults: number): string {
+export function buildQueueSearchUrl(baseUrl: string, jql: string, maxResults: number, nextPageToken?: string): string {
   const params = new URLSearchParams({
     jql,
     maxResults: String(maxResults),
     fields: QUEUE_FIELDS.join(',')
   })
+  if (nextPageToken) params.set('nextPageToken', nextPageToken)
   return `${baseUrl}/rest/api/3/search/jql?${params.toString()}`
 }
 

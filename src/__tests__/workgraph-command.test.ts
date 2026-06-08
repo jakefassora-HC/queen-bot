@@ -72,3 +72,45 @@ test('resolveWaveTickets treats completed blockers as unblocked', () => {
   expect(result.ready.map(t => t.key)).toEqual(['AISOL-740', 'AISOL-741'])
   expect(result.blocked).toEqual([])
 })
+
+test('resolveWaveTickets treats formal Jira Blocks links as blockers without text metadata', () => {
+  const api = ticket({
+    key: 'AISOL-742',
+    summary: 'API contract',
+    parent: { key: 'AISOL-448', summary: 'Auto Research' },
+    description: 'Wave: 1\nLane: Data Foundation',
+    issueLinks: [{ key: 'AISOL-743', summary: 'Schema review', type: 'Blocks', direction: 'inward' }],
+  })
+  const docs = ticket({
+    key: 'AISOL-744',
+    summary: 'Docs draft',
+    parent: { key: 'AISOL-448', summary: 'Auto Research' },
+    description: 'Wave: 1\nLane: Documentation',
+    issueLinks: [{ key: 'AISOL-745', summary: 'Editorial pass', type: 'Blocks', direction: 'outward' }],
+  })
+  const schemaReview = ticket({ key: 'AISOL-743', summary: 'Schema review' })
+  const editorialPass = ticket({ key: 'AISOL-745', summary: 'Editorial pass' })
+
+  const result = resolveWaveTickets('AISOL-448', 1, [story, api, docs, schemaReview, editorialPass])
+
+  expect(result.ready).toEqual([])
+  expect(result.blocked).toEqual([
+    { ticketKey: 'AISOL-742', reason: 'blocked by AISOL-743' },
+    { ticketKey: 'AISOL-744', reason: 'blocked by AISOL-745' },
+  ])
+})
+
+test('formatGraphStatus displays link-derived blockers compactly', () => {
+  const api = ticket({
+    key: 'AISOL-742',
+    summary: 'API contract',
+    parent: { key: 'AISOL-448', summary: 'Auto Research' },
+    description: 'Wave: 1\nLane: Data Foundation',
+    issueLinks: [{ key: 'AISOL-743', summary: 'Schema review', type: 'Blocks', direction: 'inward' }],
+  })
+  const schemaReview = ticket({ key: 'AISOL-743', summary: 'Schema review' })
+
+  const output = formatGraphStatus(story, [story, api, schemaReview])
+
+  expect(output).toContain('AISOL-742 (To Do) API contract | blocked by: AISOL-743')
+})

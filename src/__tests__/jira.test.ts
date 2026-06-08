@@ -6,6 +6,7 @@ import {
   buildQueueJql,
   buildQueueSearchUrl,
   buildUpdateDescriptionPayload,
+  fetchQueueIssues,
   parseTicket,
   parseRepoLabel,
   upsertTextToDescriptionAdf,
@@ -178,6 +179,37 @@ test('buildQueueSearchUrl explicitly requests fields needed by parseTicket', () 
 
   expect(url).toContain('/rest/api/3/search/jql?')
   expect(decodeURIComponent(url)).toContain('fields=*all')
+})
+
+test('buildQueueSearchUrl includes nextPageToken for Jira pagination', () => {
+  const url = buildQueueSearchUrl('https://example.atlassian.net', buildQueueJql('TOOL'), 20, 'next-123')
+
+  expect(decodeURIComponent(url)).toContain('nextPageToken=next-123')
+})
+
+test('fetchQueueIssues follows Jira nextPageToken pagination', async () => {
+  const urls: string[] = []
+  const fetcher = async (url: string) => {
+    urls.push(url)
+    const token = new URL(url).searchParams.get('nextPageToken')
+    return {
+      ok: true,
+      json: async () => token === 'page-2'
+        ? { issues: [{ ...rawIssue, id: '10002', key: 'TOOL-49' }] }
+        : { issues: [rawIssue], nextPageToken: 'page-2' }
+    } as Response
+  }
+
+  const issues = await fetchQueueIssues(
+    { baseUrl: 'https://example.atlassian.net', email: 'jake@example.com', project: 'TOOL' },
+    'Basic abc',
+    {},
+    fetcher as typeof fetch
+  )
+
+  expect(issues.map(issue => issue.key)).toEqual(['TOOL-48', 'TOOL-49'])
+  expect(urls).toHaveLength(2)
+  expect(new URL(urls[1]).searchParams.get('nextPageToken')).toBe('page-2')
 })
 
 test('verifyJiraAuth throws a useful error on invalid credentials', async () => {
