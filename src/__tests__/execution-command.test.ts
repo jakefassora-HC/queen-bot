@@ -209,5 +209,5 @@ test('formatExecutionPreview can show verbose cmux command when requested', () =
   const output = formatExecutionPreview([ready.contract], [], { verbose: true })
 
   expect(output).toContain('cmux:')
-  expect(output).toContain('claude --name')
+  expect(output).toContain('--name AISOL-465')
 })
