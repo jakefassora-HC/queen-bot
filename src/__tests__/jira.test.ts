@@ -210,7 +210,13 @@ test('buildCreateIssuePayload turns a draft into Jira ADF fields', () => {
     definitionOfDone: ['Approved tickets are created in Jira'],
     labels: ['agent-spec'],
     relatedRepos: ['jakefassora-HC/queen-bot'],
-    storyPoints: 3
+    storyPoints: 3,
+    wave: 1,
+    lane: 'Planning',
+    blockedBy: ['AISOL-1'],
+    canRunWith: ['AISOL-3'],
+    sourcePlanPath: '/tmp/source-plan.md',
+    sourceSection: '§4B'
   })
 
   expect(payload.fields.project.key).toBe('TOOL')
@@ -219,6 +225,14 @@ test('buildCreateIssuePayload turns a draft into Jira ADF fields', () => {
   expect(payload.fields.labels).toContain('agent-draft')
   expect(payload.fields.description.type).toBe('doc')
   expect(JSON.stringify(payload.fields.description)).toContain('Goal')
+  expect(adfToPlainText(payload.fields.description)).toContain('## Parallel Execution')
+  expect(adfToPlainText(payload.fields.description)).toContain('Wave: 1')
+  expect(adfToPlainText(payload.fields.description)).toContain('Lane: Planning')
+  expect(adfToPlainText(payload.fields.description)).toContain('Blocked by: AISOL-1')
+  expect(adfToPlainText(payload.fields.description)).toContain('Can run with: AISOL-3')
+  expect(adfToPlainText(payload.fields.description)).toContain('## Source Plan')
+  expect(adfToPlainText(payload.fields.description)).toContain('Path: /tmp/source-plan.md')
+  expect(adfToPlainText(payload.fields.description)).toContain('Section: §4B')
 })
 
 test('appendTextToDescriptionAdf preserves existing ADF nodes when adding Agent Q text', () => {

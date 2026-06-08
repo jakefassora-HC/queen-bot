@@ -342,6 +342,37 @@ function bulletList(items: string[]): JiraAdfNode {
   }
 }
 
+function metadataLine(label: string, value: string | number | string[] | undefined): string | null {
+  if (value === undefined) return null
+  if (Array.isArray(value)) return value.length > 0 ? `${label}: ${value.join(', ')}` : null
+  const text = String(value).trim()
+  return text ? `${label}: ${text}` : null
+}
+
+function workGraphDescriptionNodes(draft: TicketDraft): JiraAdfNode[] {
+  const parallelLines = [
+    metadataLine('Wave', draft.wave),
+    metadataLine('Lane', draft.lane),
+    metadataLine('Blocked by', draft.blockedBy),
+    metadataLine('Blocks', draft.blocks),
+    metadataLine('Can run with', draft.canRunWith),
+  ].filter((line): line is string => Boolean(line))
+
+  const sourceLines = [
+    metadataLine('Path', draft.sourcePlanPath),
+    metadataLine('Section', draft.sourceSection),
+  ].filter((line): line is string => Boolean(line))
+
+  const nodes: JiraAdfNode[] = []
+  if (parallelLines.length > 0) {
+    nodes.push(heading('Parallel Execution'), ...plainTextToAdfBlocks(parallelLines.join('\n\n')))
+  }
+  if (sourceLines.length > 0) {
+    nodes.push(heading('Source Plan'), ...plainTextToAdfBlocks(sourceLines.join('\n\n')))
+  }
+  return nodes
+}
+
 function uniqueLabels(labels: string[]): string[] {
   return Array.from(new Set(['agent-draft', ...labels])).filter(Boolean)
 }
@@ -516,6 +547,7 @@ export function buildCreateIssuePayload(projectKey: string, draft: TicketDraft, 
         if (draft.relatedRepos.length > 0) {
           descriptionNodes.push(heading('Related Repos'), bulletList(draft.relatedRepos))
         }
+        descriptionNodes.push(...workGraphDescriptionNodes(draft))
         return {
           type: 'doc' as const,
           version: 1,

@@ -50,7 +50,13 @@ test('parseTicketDrafts validates required ticket draft fields', () => {
         definitionOfDone: ['Approved tickets are created in Jira'],
         labels: ['agent-spec'],
         relatedRepos: ['jakefassora-HC/queen-bot'],
-    storyPoints: 3
+        storyPoints: 3,
+        wave: 1,
+        lane: 'Planning',
+        blockedBy: ['AISOL-1'],
+        canRunWith: ['AISOL-3'],
+        sourcePlanPath: '/tmp/source-plan.md',
+        sourceSection: '§4B'
       }
     ]
   }))
@@ -58,6 +64,12 @@ test('parseTicketDrafts validates required ticket draft fields', () => {
   expect(drafts).toHaveLength(1)
   expect(drafts[0].summary).toBe('Draft Jira tickets from planning discussions')
   expect(drafts[0].goal.successCriteria).toContain('Shows 1-N drafts')
+  expect(drafts[0].wave).toBe(1)
+  expect(drafts[0].lane).toBe('Planning')
+  expect(drafts[0].blockedBy).toEqual(['AISOL-1'])
+  expect(drafts[0].canRunWith).toEqual(['AISOL-3'])
+  expect(drafts[0].sourcePlanPath).toBe('/tmp/source-plan.md')
+  expect(drafts[0].sourceSection).toBe('§4B')
 })
 
 test('summarizeTicketDrafts renders a human approval preview', () => {

@@ -187,6 +187,13 @@ export interface TicketDraft {
   labels: string[]
   relatedRepos: string[]
   storyPoints: number
+  wave?: number
+  lane?: string
+  blockedBy?: string[]
+  blocks?: string[]
+  canRunWith?: string[]
+  sourcePlanPath?: string
+  sourceSection?: string
 }
 
 export interface DraftOutput {
