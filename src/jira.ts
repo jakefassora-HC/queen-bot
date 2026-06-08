@@ -1,7 +1,9 @@
 import type { JiraAdfDocument, JiraAdfNode, JiraTicket } from './types.js'
 import type { TicketDraft } from './types.js'
 import type { JiraConfig } from './config.js'
+import type { JiraWritePermit } from './jira-write-policy.js'
 import { getJiraKey, requireJiraConfig } from './config.js'
+import type { TicketGoal } from './types.js'
 
 function authHeader(email: string): string {
   const creds = Buffer.from(`${email}:${getJiraKey()}`).toString('base64')
@@ -249,6 +251,19 @@ async function fetchFieldNameMap(config: JiraConfig, auth: string): Promise<Reco
   }, {})
 }
 
+export async function fetchEpics(projectKey: string): Promise<Array<{ key: string; summary: string }>> {
+  const config = requireJiraConfig()
+  const auth = authHeader(config.email)
+  const jql = `project = ${projectKey} AND issuetype = Epic ORDER BY created DESC`
+  const params = new URLSearchParams({ jql, maxResults: '50', fields: 'summary' })
+  const res = await fetch(`${config.baseUrl}/rest/api/3/search/jql?${params}`, {
+    headers: { Authorization: auth, Accept: 'application/json' }
+  })
+  if (!res.ok) return []
+  const data = await res.json() as { issues: Array<{ key: string; fields: { summary: string } }> }
+  return data.issues.map(i => ({ key: i.key, summary: i.fields.summary }))
+}
+
 export async function fetchQueue(): Promise<JiraTicket[]> {
   const config = requireJiraConfig()
   const auth = authHeader(config.email)
@@ -302,6 +317,9 @@ type CreateIssuePayload = {
       version: 1
       content: JiraAdfNode[]
     }
+    assignee?: { accountId: string }
+    customfield_10016?: number
+    parent?: { key: string }
   }
 }
 
@@ -309,8 +327,8 @@ function paragraph(text: string): JiraAdfNode {
   return { type: 'paragraph', content: [{ type: 'text', text }] }
 }
 
-function heading(text: string): JiraAdfNode {
-  return { type: 'heading', attrs: { level: '2' }, content: [{ type: 'text', text }] }
+function heading(text: string, level = 2): JiraAdfNode {
+  return { type: 'heading', attrs: { level }, content: [{ type: 'text', text }] }
 }
 
 function bulletList(items: string[]): JiraAdfNode {
@@ -399,6 +417,55 @@ export function appendTextToDescriptionAdf(
   }
 }
 
+export function buildCommentBodyAdf(text: string): JiraAdfDocument {
+  return {
+    type: 'doc',
+    version: 1,
+    content: plainTextToAdfBlocks(text)
+  }
+}
+
+function isHeadingNode(node: JiraAdfNode, headingText: string): boolean {
+  return node.type === 'heading' && collectInlineText(node).trim() === headingText
+}
+
+export function upsertTextToDescriptionAdf(
+  description: JiraAdfDocument | null | undefined,
+  text: string,
+  headingText: string
+): JiraAdfDocument {
+  const content = description?.content ?? []
+  const replacement = plainTextToAdfBlocks(text)
+  const start = content.findIndex(node => isHeadingNode(node, headingText))
+
+  if (start === -1) {
+    return {
+      type: 'doc',
+      version: 1,
+      content: [...content, ...replacement]
+    }
+  }
+
+  const headingLevel = Number(content[start].attrs?.level ?? 2)
+  let end = start + 1
+  while (end < content.length) {
+    const node = content[end]
+    const nodeLevel = Number(node.attrs?.level ?? 2)
+    if (node.type === 'heading' && nodeLevel <= headingLevel) break
+    end += 1
+  }
+
+  return {
+    type: 'doc',
+    version: 1,
+    content: [
+      ...content.slice(0, start),
+      ...replacement,
+      ...content.slice(end)
+    ]
+  }
+}
+
 export function buildUpdateDescriptionPayload(description: JiraAdfDocument): { fields: { description: JiraAdfDocument } } {
   return {
     fields: {
@@ -407,56 +474,92 @@ export function buildUpdateDescriptionPayload(description: JiraAdfDocument): { f
   }
 }
 
-export function buildCreateIssuePayload(projectKey: string, draft: TicketDraft): CreateIssuePayload {
+function goalToAdfNodes(goal: TicketGoal): JiraAdfNode[] {
+  const nodes: JiraAdfNode[] = [
+    { type: 'heading', attrs: { level: 2 }, content: [textNode('Goal')] },
+    { type: 'heading', attrs: { level: 3 }, content: [textNode('Why')] },
+    paragraph(goal.why),
+  ]
+  if (goal.constraints.length > 0) {
+    nodes.push({ type: 'heading', attrs: { level: 3 }, content: [textNode('Constraints')] }, bulletList(goal.constraints))
+  }
+  if (goal.nonGoals.length > 0) {
+    nodes.push({ type: 'heading', attrs: { level: 3 }, content: [textNode('Non-Goals')] }, bulletList(goal.nonGoals))
+  }
+  if (goal.successCriteria.length > 0) {
+    nodes.push({ type: 'heading', attrs: { level: 3 }, content: [textNode('Success Criteria')] }, bulletList(goal.successCriteria))
+  }
+  return nodes
+}
+
+export function buildCreateIssuePayload(projectKey: string, draft: TicketDraft, parentKey?: string): CreateIssuePayload {
   return {
     fields: {
       project: { key: projectKey },
       summary: draft.summary,
       issuetype: { name: draft.issueType },
       labels: uniqueLabels(draft.labels),
-      description: {
-        type: 'doc',
-        version: 1,
-        content: [
+      ...(draft.storyPoints > 0 ? { customfield_10016: draft.storyPoints } : {}),
+      ...(parentKey ? { parent: { key: parentKey } } : {}),
+      description: (() => {
+        const descriptionNodes: JiraAdfNode[] = [
+          ...goalToAdfNodes(draft.goal),
           heading('Problem'),
-          paragraph(draft.problem),
-          heading('Goal'),
-          paragraph(draft.goal),
-          heading('Non-goals'),
-          bulletList(draft.nonGoals),
-          heading('Acceptance Criteria'),
-          bulletList(draft.acceptanceCriteria),
-          heading('Research Notes'),
-          bulletList(draft.researchNotes),
-          heading('Risks'),
-          bulletList(draft.risks),
-          heading('Definition of Done'),
-          bulletList(draft.definitionOfDone),
-          heading('Related Repos'),
-          bulletList(draft.relatedRepos)
+          ...plainTextToAdfBlocks(draft.problem),
         ]
-      }
+        if (draft.risks.length > 0) {
+          descriptionNodes.push(heading('Risks'), bulletList(draft.risks))
+        }
+        if (draft.definitionOfDone.length > 0) {
+          descriptionNodes.push(heading('Definition of Done'), bulletList(draft.definitionOfDone))
+        }
+        if (draft.relatedRepos.length > 0) {
+          descriptionNodes.push(heading('Related Repos'), bulletList(draft.relatedRepos))
+        }
+        return {
+          type: 'doc' as const,
+          version: 1,
+          content: descriptionNodes,
+        }
+      })()
     }
   }
 }
 
-export async function createIssueFromDraft(projectKey: string, draft: TicketDraft): Promise<string> {
+function assertPermit(permit: JiraWritePermit, action: JiraWritePermit['action']): void {
+  if (permit.action !== action) {
+    throw new Error(`Jira write permit mismatch: expected ${action}, received ${permit.action}.`)
+  }
+}
+
+async function getCurrentUserAccountId(config: JiraConfig, auth: string, fetcher: Fetcher = fetch): Promise<string | undefined> {
+  try {
+    const res = await fetcher(`${config.baseUrl}/rest/api/3/myself`, { headers: { Authorization: auth, Accept: 'application/json' } })
+    if (!res.ok) return undefined
+    const data = await res.json() as { accountId?: string }
+    return data.accountId
+  } catch { return undefined }
+}
+
+export async function createIssueFromDraft(projectKey: string, draft: TicketDraft, permit: JiraWritePermit, parentKey?: string): Promise<string> {
+  assertPermit(permit, 'create-ticket')
   const config = requireJiraConfig()
+  const auth = authHeader(config.email)
+  const assigneeAccountId = await getCurrentUserAccountId(config, auth)
+  const payload = buildCreateIssuePayload(projectKey, draft, parentKey)
+  if (assigneeAccountId) payload.fields.assignee = { accountId: assigneeAccountId }
   const res = await fetch(`${config.baseUrl}/rest/api/3/issue`, {
     method: 'POST',
-    headers: {
-      Authorization: authHeader(config.email),
-      Accept: 'application/json',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(buildCreateIssuePayload(projectKey, draft))
+    headers: { Authorization: auth, Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
   })
   if (!res.ok) throw new Error(`Jira create issue error ${res.status}: ${await res.text()}`)
   const data = await res.json() as { key: string }
   return data.key
 }
 
-export async function updateTicketDescription(ticketKey: string, description: JiraAdfDocument): Promise<void> {
+export async function updateTicketDescription(ticketKey: string, description: JiraAdfDocument, permit: JiraWritePermit): Promise<void> {
+  assertPermit(permit, 'update-description')
   const config = requireJiraConfig()
   const res = await fetch(`${config.baseUrl}/rest/api/3/issue/${ticketKey}`, {
     method: 'PUT',
@@ -470,7 +573,8 @@ export async function updateTicketDescription(ticketKey: string, description: Ji
   if (!res.ok) throw new Error(`Jira update issue error ${res.status}: ${await res.text()}`)
 }
 
-export async function transitionTicket(ticketKey: string, statusName: 'In Progress' | 'Done'): Promise<void> {
+export async function transitionTicket(ticketKey: string, statusName: 'In Progress' | 'Done', permit: JiraWritePermit): Promise<void> {
+  assertPermit(permit, 'transition')
   const config = requireJiraConfig()
   const transUrl = `${config.baseUrl}/rest/api/3/issue/${ticketKey}/transitions`
   const transRes = await fetch(transUrl, { headers: { Authorization: authHeader(config.email), Accept: 'application/json' } })
@@ -484,12 +588,24 @@ export async function transitionTicket(ticketKey: string, statusName: 'In Progre
   })
 }
 
-export async function commentOnTicket(ticketKey: string, text: string): Promise<void> {
+export async function createIssueLinkInJira(inwardKey: string, outwardKey: string, permit: JiraWritePermit): Promise<void> {
+  assertPermit(permit, 'link-issue')
+  const config = requireJiraConfig()
+  const res = await fetch(`${config.baseUrl}/rest/api/3/issueLink`, {
+    method: 'POST',
+    headers: { Authorization: authHeader(config.email), Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: { name: 'Blocks' }, inwardIssue: { key: inwardKey }, outwardIssue: { key: outwardKey } })
+  })
+  if (!res.ok) throw new Error(`Jira link error ${res.status}: ${await res.text()}`)
+}
+
+export async function commentOnTicket(ticketKey: string, text: string, permit: JiraWritePermit): Promise<void> {
+  assertPermit(permit, 'comment')
   const config = requireJiraConfig()
   const res = await fetch(`${config.baseUrl}/rest/api/3/issue/${ticketKey}/comment`, {
     method: 'POST',
     headers: { Authorization: authHeader(config.email), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ body: { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [textNode(text)] }] } })
+    body: JSON.stringify({ body: buildCommentBodyAdf(text) })
   })
   if (!res.ok) throw new Error(`Jira comment error ${res.status}: ${await res.text()}`)
 }

@@ -66,6 +66,24 @@ test('formatQueenDashboard surfaces richer Jira details in ticket rows', () => {
   expect(output).toContain('priority: High')
   expect(output).toContain('components: Sankey')
   expect(output).toContain('fix: v2')
+  expect(output).toContain('graph: parent AISOL-97 Roadwarrior')
+})
+
+test('formatQueenDashboard surfaces work graph policy for broad tickets', () => {
+  const tickets: JiraTicket[] = [{
+    id: '1',
+    key: 'AISOL-700',
+    summary: 'Large ambiguous work',
+    description: '',
+    storyPoints: 8,
+    issueType: 'Story',
+    labels: [],
+    status: 'To Do'
+  }]
+
+  const output = formatQueenDashboard(tickets)
+
+  expect(output).toContain('policy: 8+ point ticket needs linked child work before execution')
 })
 
 test('formatQueenDashboard shows every ticket by default', () => {

@@ -1,5 +1,6 @@
 import { spawn } from 'child_process'
 import { existsSync } from 'fs'
+import { renderGoal } from './jira-goal.js'
 import type { ExecutionContract } from './types.js'
 
 export const DEFAULT_CMUX_BINARY = '/Applications/cmux.app/Contents/Resources/bin/cmux'
@@ -36,11 +37,13 @@ export function cmuxStartHelp(): string {
 
 export function buildClaudeHandoffPrompt(ticketKey: string, contract?: ExecutionContract): string {
   const key = cmuxWorkspaceName(ticketKey)
+
+  const goalBlock = contract?.goal
+    ? `# Goal (source of truth)\n\n${renderGoal(contract.goal)}\n\nThe Goal above is your primary constraint. If the Plan below conflicts with the Goal, the Goal wins.\n\n`
+    : ''
+
   const lines = [
     `You are Agent Q for Jira ticket ${key}.`,
-    'Start by running:',
-    `cd ~/projects/agent-queue && agent-queue show ${key}`,
-    'Use that Jira output as source context in this Claude session.',
     'Execute only after the ticket has an approved Jira plan and autonomy level.',
     'Use an isolated worktree and branch for implementation.',
     'If the Jira plan is missing or weak, stop and improve Jira first.',
@@ -48,16 +51,33 @@ export function buildClaudeHandoffPrompt(ticketKey: string, contract?: Execution
     'Do not run agent-queue run from inside this session; that would spawn another non-interactive Claude process.',
     'Use Superpowers as the quality protocol: brainstorm/plan first, use TDD for changes, use systematic debugging for failures, and verify before claiming completion.',
     'After Jake approves the plan and autonomy level, dispatch parallel agents for independent research, implementation, review, or verification domains whenever doing so is safe and useful.',
-    'Keep bounded autonomy: move fast inside the approved contract, but stop before forbidden writes, merges, deploys, or unclear scope changes.',
-    'After you understand the ticket, propose the plan and wait for Jake before implementing.'
+    'Keep bounded autonomy: move fast inside the approved contract, but stop before forbidden writes, merges, deploys, or unclear scope changes.'
   ]
 
   if (contract) {
+    lines.push('Start by running:')
+    lines.push(`cd ~/projects/agent-queue && agent-queue context ${key} --brief`)
+    lines.push('Use that compact execution packet as source context. If local_plan_status is ready, read the local plan file too. Do not dump full Jira unless debugging.')
+    lines.push('BEFORE DOING ANYTHING ELSE: Print the following execution brief, then ask Jake to type "proceed" before you run any tool or write any code.')
+    lines.push(`EXECUTION BRIEF: ${key}`)
+    if (contract.goal) {
+      lines.push(`Goal: ${contract.goal.why}`)
+      if (contract.goal.successCriteria.length > 0) lines.push(`Success criteria: ${contract.goal.successCriteria.join(' | ')}`)
+    }
+    lines.push('Ask Jake: "Ready to execute? Type proceed to begin." Wait for "proceed" before taking any other action.')
+    lines.push('After "proceed": read Jira context, sanity-check repo, then execute inside the approved contract.')
     lines.push(`Approved execution contract: repo ${contract.repo}, branch ${contract.branch}, worktree ${contract.worktreePath}, autonomy level ${contract.autonomyLevel}.`)
     lines.push(`After reading Jira context, work in this directory: ${contract.worktreePath}.`)
+    lines.push(`When your work is complete, write /tmp/proof-${key}.json: { "ticketKey": "${key}", "branch": "<branch>", "prUrl": "<url or null>", "summary": "<one paragraph>", "filesChanged": ["<path>"], "verification": ["<what you ran and what passed>"], "residualRisk": ["<anything incomplete>"] }`)
+    lines.push(`Then run: cd ~/projects/agent-queue && agent-queue proof --file /tmp/proof-${key}.json --comment`)
+  } else {
+    lines.push('Start by running:')
+    lines.push(`cd ~/projects/agent-queue && agent-queue show ${key}`)
+    lines.push('Use that Jira output as source context in this Claude session.')
+    lines.push('After you understand the ticket, propose the plan and wait for Jake before implementing.')
   }
 
-  return lines.join(' ')
+  return goalBlock + lines.join(' ')
 }
 
 export function buildCmuxAgentCommand(ticketKey: string, cmuxBinary = resolveCmuxBinary(), contract?: ExecutionContract): string {

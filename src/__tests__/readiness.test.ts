@@ -1,5 +1,6 @@
 import { scoreTicketReadiness } from '../readiness.js'
 import type { JiraTicket } from '../types.js'
+import { renderGoal } from '../jira-goal.js'
 
 const baseTicket: JiraTicket = {
   id: '1',
@@ -158,4 +159,29 @@ test('ticket comments are included as planning context', () => {
   expect(readiness.missing).not.toContain('goal')
   expect(readiness.missing).not.toContain('context')
   expect(readiness.missing).not.toContain('acceptance criteria')
+})
+
+test('ticket with no Goal section has missing Goal artifact weakness', () => {
+  const readiness = scoreTicketReadiness({
+    ...baseTicket,
+    description: 'Some description without a Goal section.'
+  })
+
+  expect(readiness.weaknesses).toContain('Missing Goal artifact (## Goal section with Why and Success Criteria)')
+})
+
+test('ticket with a complete Goal section has Goal artifact present in strengths', () => {
+  const description = renderGoal({
+    why: 'We need this for better onboarding.',
+    constraints: ['Must be backward compatible'],
+    nonGoals: ['Redesign the UI'],
+    successCriteria: ['New teammate can complete setup in under 30 minutes']
+  })
+
+  const readiness = scoreTicketReadiness({
+    ...baseTicket,
+    description
+  })
+
+  expect(readiness.strengths).toContain('Goal artifact present')
 })

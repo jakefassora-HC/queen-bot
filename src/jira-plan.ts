@@ -25,6 +25,7 @@ export function renderJiraPlan(plan: JiraPlan): string {
     AGENT_Q_PLAN_HEADING,
     `Ticket: ${plan.ticketKey}`,
     `Autonomy Level: ${plan.autonomyLevel}`,
+    plan.localPlanPath ? `Local Plan Path: ${plan.localPlanPath}` : null,
     '',
     '### Goal',
     plan.goal,
@@ -46,7 +47,7 @@ export function renderJiraPlan(plan: JiraPlan): string {
     '',
     '### Forbidden Actions',
     bullets(plan.forbiddenActions)
-  ].join('\n')
+  ].filter(line => line !== null).join('\n')
 }
 
 export function parseJiraPlan(description: string): JiraPlan | null {
@@ -56,6 +57,7 @@ export function parseJiraPlan(description: string): JiraPlan | null {
   const text = description.slice(start)
   const ticketKey = text.match(/Ticket: ([A-Z]+-\d+)/)?.[1]
   const autonomy = Number(text.match(/Autonomy Level: ([0-4])/)?.[1])
+  const localPlanPath = text.match(/Local Plan Path: (.+)/)?.[1]?.trim()
   const goal = section(text, 'Goal')
   if (!ticketKey || !goal || !Number.isInteger(autonomy)) return null
 
@@ -68,7 +70,8 @@ export function parseJiraPlan(description: string): JiraPlan | null {
     verification: parseBullets(section(text, 'Verification')),
     risks: parseBullets(section(text, 'Risks')),
     autonomyLevel: autonomy as AutonomyLevel,
-    forbiddenActions: parseBullets(section(text, 'Forbidden Actions'))
+    forbiddenActions: parseBullets(section(text, 'Forbidden Actions')),
+    localPlanPath
   }
 }
 

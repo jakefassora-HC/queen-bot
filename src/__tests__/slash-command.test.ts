@@ -12,6 +12,8 @@ test('/queen command preserves the dashboard instead of summarizing or rerunning
   expect(command).toContain('Do not summarize')
   expect(command).toContain('preserve the dashboard line breaks')
   expect(command).toContain('Do not rerun')
+  expect(command).toContain('Do not use the Atlassian MCP')
+  expect(command).toContain('Plan writes must update the Jira description')
   expect(command).not.toContain('Render the output back')
   expect(command).not.toContain('Do not paste a giant raw terminal wall')
 })

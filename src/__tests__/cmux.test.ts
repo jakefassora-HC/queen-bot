@@ -59,8 +59,10 @@ test('buildCmuxExecutionWorkspaceArgs starts in the execution worktree', () => {
     repo: 'jakefassora-HC/queen-bot',
     branch: 'agent/AISOL-465',
     worktreePath: '/tmp/.agent-worktrees/AISOL-465',
+    engine: 'claude',
     autonomyLevel: 2,
     approvedAt: 'pending',
+    goal: null,
     plan: {
       ticketKey: 'AISOL-465',
       goal: 'Goal',
@@ -78,6 +80,97 @@ test('buildCmuxExecutionWorkspaceArgs starts in the execution worktree', () => {
 
   expect(args).toContain('/tmp/.agent-worktrees/AISOL-465')
   expect(args.join(' ')).toContain('approved Jira plan')
+})
+
+test('execution handoff does not ask for another planning approval after approval contract exists', () => {
+  const prompt = buildClaudeHandoffPrompt('AISOL-465', {
+    ticketKey: 'AISOL-465',
+    repo: 'jakefassora-HC/queen-bot',
+    branch: 'agent/AISOL-465',
+    worktreePath: '/tmp/.agent-worktrees/AISOL-465',
+    engine: 'claude',
+    autonomyLevel: 2,
+    approvedAt: '2026-05-28T00:00:00.000Z',
+    goal: null,
+    plan: {
+      ticketKey: 'AISOL-465',
+      goal: 'Goal',
+      context: ['Context'],
+      acceptanceCriteria: ['Done'],
+      implementationNotes: [],
+      verification: ['Test'],
+      risks: [],
+      forbiddenActions: ['Do not merge.'],
+      autonomyLevel: 2
+    }
+  })
+
+  expect(prompt).toContain('proceed')
+  expect(prompt).toContain('agent-queue context AISOL-465 --brief')
+  expect(prompt).not.toContain('agent-queue show AISOL-465')
+  expect(prompt).not.toContain('plus the local plan path')
+  expect(prompt).toContain('After "proceed"')
+  expect(prompt).not.toContain('propose the plan and wait')
+})
+
+test('buildClaudeHandoffPrompt injects Goal when contract has a non-null goal', () => {
+  const prompt = buildClaudeHandoffPrompt('AISOL-465', {
+    ticketKey: 'AISOL-465',
+    repo: 'jakefassora-HC/queen-bot',
+    branch: 'agent/AISOL-465',
+    worktreePath: '/tmp/.agent-worktrees/AISOL-465',
+    engine: 'claude',
+    autonomyLevel: 2,
+    approvedAt: '2026-05-28T00:00:00.000Z',
+    goal: {
+      why: 'We need to improve performance',
+      constraints: ['No breaking changes', 'Must use existing APIs'],
+      nonGoals: ['Refactor the entire module'],
+      successCriteria: ['30% faster', 'All tests pass']
+    },
+    plan: {
+      ticketKey: 'AISOL-465',
+      goal: 'Goal',
+      context: ['Context'],
+      acceptanceCriteria: ['Done'],
+      implementationNotes: [],
+      verification: ['Test'],
+      risks: [],
+      forbiddenActions: ['Do not merge.'],
+      autonomyLevel: 2
+    }
+  })
+
+  expect(prompt).toContain('# Goal (source of truth)')
+  const goalIndex = prompt.indexOf('# Goal (source of truth)')
+  const agentIndex = prompt.indexOf('You are Agent Q')
+  expect(goalIndex).toBeLessThan(agentIndex)
+})
+
+test('buildClaudeHandoffPrompt does not inject Goal when contract has goal: null', () => {
+  const prompt = buildClaudeHandoffPrompt('AISOL-465', {
+    ticketKey: 'AISOL-465',
+    repo: 'jakefassora-HC/queen-bot',
+    branch: 'agent/AISOL-465',
+    worktreePath: '/tmp/.agent-worktrees/AISOL-465',
+    engine: 'claude',
+    autonomyLevel: 2,
+    approvedAt: '2026-05-28T00:00:00.000Z',
+    goal: null,
+    plan: {
+      ticketKey: 'AISOL-465',
+      goal: 'Goal',
+      context: ['Context'],
+      acceptanceCriteria: ['Done'],
+      implementationNotes: [],
+      verification: ['Test'],
+      risks: [],
+      forbiddenActions: ['Do not merge.'],
+      autonomyLevel: 2
+    }
+  })
+
+  expect(prompt).not.toContain('# Goal (source of truth)')
 })
 
 test('formatCmuxCommand previews the exact command that will run', () => {

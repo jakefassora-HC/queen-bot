@@ -14,8 +14,10 @@ import { formatQueue, formatTicketDetails, resolveTicketSelection } from './queu
 import { formatCmuxCommand } from './cmux.js'
 import { formatQueenDashboard, formatReadinessQueue } from './readiness-command.js'
 import { runPlanCommand } from './plan-command.js'
+import { runPlanCommentCommand } from './plan-comment-command.js'
 import { runProofCommand } from './proof.js'
 import { runExecuteReadyCommand } from './execution-command.js'
+import { runContextCommand } from './context-command.js'
 import type { JiraTicket } from './types.js'
 
 function prompt(q: string): Promise<string> {
@@ -146,8 +148,18 @@ export async function main(): Promise<void> {
     return
   }
 
+  if (args[0] === 'plan-comment') {
+    await runPlanCommentCommand(args.slice(1), tickets)
+    return
+  }
+
   if (args[0] === 'execute-ready') {
     await runExecuteReadyCommand(args.slice(1), tickets)
+    return
+  }
+
+  if (args[0] === 'context') {
+    await runContextCommand(args.slice(1), tickets)
     return
   }
 

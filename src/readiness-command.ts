@@ -1,4 +1,5 @@
 import { scoreTicketReadiness } from './readiness.js'
+import { workGraphSummary } from './work-graph.js'
 import type { JiraTicket } from './types.js'
 
 function pointsLabel(points: number | null): string {
@@ -90,10 +91,12 @@ export function formatQueenDashboard(tickets: JiraTicket[], limit = tickets.leng
 
       for (const ticket of groupTickets) {
         const readiness = scoreTicketReadiness(ticket)
+        const graph = workGraphSummary(ticket)
         const nextAction = readiness.canExecute ? 'ready to discuss execution' : 'plan before execution'
         lines.push(`- [ ] ${ticketNumber(ticket, tickets)}. ${ticket.key} - ${readiness.score}% ${readiness.band} - ${ticket.status || 'unknown'}`)
         lines.push(`  ${ticket.summary}`)
         lines.push(`  ${ticketContextLine(ticket)} | next: ${nextAction}`)
+        lines.push(`  graph: parent ${graph.parent} | children ${graph.childCount} | links ${graph.linkedCount} | policy: ${graph.storyPointPolicy}`)
         if (!readiness.canExecute) lines.push(`  Missing: ${readiness.missing.join(', ')}`)
         lines.push('')
       }

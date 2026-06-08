@@ -87,10 +87,23 @@ export interface TicketReadiness {
   canExecute: boolean
   strengths: string[]
   missing: string[]
+  weaknesses: string[]
   reason: string
 }
 
 export type AutonomyLevel = 0 | 1 | 2 | 3 | 4
+
+export interface TicketGoal {
+  why: string
+  constraints: string[]
+  nonGoals: string[]
+  successCriteria: string[]
+}
+
+export type ExecutionEngine = 'claude' | 'codex' | 'ruflo' | 'manual'
+export type ContextMode = 'brief' | 'standard' | 'deep'
+export type JiraWriteAction = 'comment' | 'update-description' | 'create-ticket' | 'transition' | 'link-issue' | 'upsert-goal'
+export type RunManifestStatus = 'pending' | 'running' | 'done' | 'failed'
 
 export interface JiraPlan {
   ticketKey: string
@@ -102,6 +115,7 @@ export interface JiraPlan {
   risks: string[]
   autonomyLevel: AutonomyLevel
   forbiddenActions: string[]
+  localPlanPath?: string
 }
 
 export interface ExecutionContract {
@@ -110,8 +124,22 @@ export interface ExecutionContract {
   repo: string
   branch: string
   worktreePath: string
+  engine: ExecutionEngine
   autonomyLevel: AutonomyLevel
+  goal: TicketGoal | null
   approvedAt: string
+}
+
+export interface RunManifest {
+  ticketKey: string
+  repo: string
+  branch: string
+  worktreePath: string
+  engine: ExecutionEngine
+  status: RunManifestStatus
+  planPath: string
+  allowedWrites: JiraWriteAction[]
+  startedAt: string
 }
 
 export interface ProofReport {
@@ -122,6 +150,7 @@ export interface ProofReport {
   filesChanged: string[]
   verification: string[]
   residualRisk: string[]
+  goal?: TicketGoal
 }
 
 export interface ResearchSource {
@@ -134,14 +163,20 @@ export interface TicketDraft {
   summary: string
   issueType: string
   problem: string
-  goal: string
-  nonGoals: string[]
-  acceptanceCriteria: string[]
-  researchNotes: string[]
+  goal: TicketGoal
+  researchNotes: string
   risks: string[]
   definitionOfDone: string[]
   labels: string[]
   relatedRepos: string[]
+  storyPoints: number
+}
+
+export interface DraftOutput {
+  epicKey?: string
+  parentStory?: TicketDraft
+  tasks: TicketDraft[]
+  taskLinks?: Array<{ fromIndex: number; blocksIndex: number }>
 }
 
 export interface TicketDraftRequest {
@@ -149,6 +184,7 @@ export interface TicketDraftRequest {
   sources: ResearchSource[]
   projectKey: string
   maxTickets: number
+  epics?: Array<{ key: string; summary: string }>
 }
 
 export interface Plan {
