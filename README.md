@@ -107,7 +107,7 @@ Start approved execution workspaces:
 npm start -- execute-ready AISOL-465 AISOL-540 --start
 ```
 
-Execution start requires every selected ticket to have a valid Agent Q plan, repo label, local full plan file, executable readiness score, allowed work-graph size policy, and autonomy level `2` or `3`. It also requires typing `APPROVE EXECUTION`.
+Execution start requires every selected ticket to have a valid Agent Q plan, repo label, executable readiness score, allowed work-graph size policy, and autonomy level `2` or `3`. The local `plan.md` path must be known, but the file can be authored by the worker as the first tactical step. Starting also requires typing `APPROVE EXECUTION`.
 
 Preview a parent/epic WorkGraph by wave and lane:
 
@@ -206,7 +206,7 @@ The draft flow borrows from:
 
 Queen Bot keeps prompts structured and compact so later execution agents do less re-reading. Approved execution now uses `agent-queue context <ticket> --brief` for worker handoff, and `execute-ready` hides giant cmux commands unless `--verbose` is requested. Jira writes stay scoped through one write policy: description writes and proof comments require explicit approval, while low-noise plan comments can write only after the Jake-owned ticket guard passes.
 
-`agent-queue plan <ticket> --write` writes the approved Super PRD to Jira and writes the full local plan under the repo project at `~/.agent-queue/plans/<repo-owner>/<repo-name>/<ticket-key>/plan.md`. Tickets without a repo label use a Jira holding area at `~/.agent-queue/plans/jira/<jira-project-key>/<ticket-key>/plan.md`. Execution preflight now blocks missing local plans, missing repo labels, direct `13+` execution, and `8+` work with no linked child work before model loops start.
+`agent-queue plan <ticket> --write` writes the approved Super PRD to Jira and allocates the tactical local plan path under the repo project at `~/.agent-queue/plans/<repo-owner>/<repo-name>/<ticket-key>/plan.md`. Tickets without a repo label use a Jira holding area at `~/.agent-queue/plans/jira/<jira-project-key>/<ticket-key>/plan.md`. Execution preflight warns when `plan.md` has not been authored yet, but does not block launch; the worker must write or update `plan.md` before code changes. Preflight still blocks missing repo labels, direct `13+` execution, and `8+` work with no linked child work before model loops start.
 
 Context output has three modes:
 
@@ -226,7 +226,7 @@ Future Queen Bot planning should treat Jira as a work graph instead of a giant d
 
 Jira descriptions hold a compressed Super PRD: goal, acceptance criteria, implementation notes, verification, autonomy, forbidden actions, and local plan path. Full detailed plans live locally under `~/.agent-queue/plans/<repo-owner>/<repo-name>/<ticket-key>/plan.md` and are linked from Jira. Jira comments should hold proof, progress, review notes, model critique summaries, and audit notes when the local plan or Super PRD changes.
 
-See `docs/specs/2026-05-29-work-graph-planning-design.md`.
+See `docs/specs/2026-05-29-work-graph-planning-design.md` and the canonical execution flow in `docs/specs/2026-06-09-queen-orchestration-workflow.md`.
 
 ## Repo Discovery
 

@@ -110,6 +110,7 @@ test('execution handoff does not ask for another planning approval after approva
   expect(prompt).not.toContain('agent-queue show AISOL-465')
   expect(prompt).not.toContain('plus the local plan path')
   expect(prompt).toContain('After "proceed"')
+  expect(prompt).toContain('author/update plan.md from the frozen Super PRD')
   expect(prompt).not.toContain('propose the plan and wait')
 })
 
@@ -138,7 +139,8 @@ test('execution handoff points workers at the local plan without dumping plan bo
   })
 
   expect(prompt).toContain('Local plan: /tmp/plans/Codefied/queen-bot/AISOL-465/plan.md')
-  expect(prompt).toContain('Read these files for continuity')
+  expect(prompt).toContain('create missing tactical plan.md before code changes')
+  expect(prompt).toContain('create/update before code changes')
   expect(prompt).not.toContain('DO NOT DUMP PLAN GOAL')
   expect(prompt).not.toContain('DO NOT DUMP HUGE JIRA CONTEXT')
   expect(prompt).not.toContain('DO NOT DUMP ACCEPTANCE CRITERIA')

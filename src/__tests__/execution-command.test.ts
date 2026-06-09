@@ -153,12 +153,12 @@ test('buildExecutionContract rejects missing plan sections even when headings ex
   expect(result.reason).toContain('acceptance criteria')
 })
 
-test('buildExecutionContract rejects missing local full plans', () => {
+test('buildExecutionContract allows execution before the tactical local plan is authored', () => {
   const result = buildExecutionContract(plannedTicket, { localPlanExists: () => false, repoExists: () => true })
 
-  expect(result.ok).toBe(false)
-  if (result.ok) throw new Error('expected rejection')
-  expect(result.reason).toContain('local plan missing')
+  expect(result.ok).toBe(true)
+  if (!result.ok) throw new Error(result.reason)
+  expect(result.warnings[0].message).toContain('local plan not authored yet')
 })
 
 test('buildExecutionContract blocks broad 13+ point parent work', () => {

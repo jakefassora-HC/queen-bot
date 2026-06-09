@@ -53,7 +53,7 @@ The Super PRD should link to this local path. That path is for Jake and local ag
 
 Implemented simple V3.2 behavior:
 
-- `agent-queue plan <ticket> --write` stores the approved local plan at this path after Jake types `APPROVE JIRA PLAN`.
+- `agent-queue plan <ticket> --write` stores the approved Super PRD and allocates the local `plan.md` path after Jake types `APPROVE JIRA PLAN`.
 - `agent-queue context <ticket> --brief` prints a compact receipt with `local_plan` and `local_plan_status`.
 - `agent-queue context <ticket> --standard` adds the Super PRD and linked work.
 - `agent-queue context <ticket> --deep` is the explicit full-detail mode.
@@ -63,7 +63,7 @@ Implemented simple V3.2 behavior:
 
 Implemented V3.3-V3.5 behavior:
 
-- Execution preflight blocks missing local plans, missing repo labels, direct `13+` execution, and `8+` work with no linked child work.
+- Execution preflight warns when the tactical local `plan.md` has not been authored yet; workers must write or update it before code changes. Preflight blocks missing repo labels, direct `13+` execution, and `8+` work with no linked child work.
 - The dashboard and compact context packet surface parent work, child/link counts, and story-point policy without writing to Jira.
 - Jira comment formatting preserves headings and bullets.
 - Plan revision comment templates are pointer-based and keep full local plan content out of Jira.
@@ -163,7 +163,7 @@ Target fixes:
    A cheap validator checks:
 
    - Super PRD exists
-   - local plan path exists
+   - local plan path is allocated; if the file is missing, warn the worker to author it before code changes
    - repo label exists and resolves to a local checkout
    - required linked children exist for `8+` and `13+` tickets
    - plan format is parseable

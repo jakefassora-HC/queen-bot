@@ -61,8 +61,9 @@ export function buildClaudeHandoffPrompt(ticketKey: string, contract?: Execution
   const workGraphFile = continuityTicket ? workGraphContinuityPath(continuityTicket, options.plansRoot) : null
   const hasBrain = Boolean(storyBrainFile && fileExists(storyBrainFile))
   const hasWorkGraph = Boolean(workGraphFile && fileExists(workGraphFile))
+  const localPlanExists = Boolean(localPlanFile && fileExists(localPlanFile))
   const continuityFiles = [
-    localPlanFile ? `- Local plan: ${localPlanFile}` : null,
+    localPlanFile ? `- Local plan: ${localPlanFile}${localPlanExists ? '' : ' (create/update before code changes)'}` : null,
     hasBrain && storyBrainFile ? `- Story brain: ${storyBrainFile}` : null,
     hasWorkGraph && workGraphFile ? `- WorkGraph continuity: ${workGraphFile}` : null,
   ].filter((line): line is string => line !== null)
@@ -77,7 +78,7 @@ export function buildClaudeHandoffPrompt(ticketKey: string, contract?: Execution
     sections.push([
       '## Continuity Files',
       '',
-      'Read these files for continuity; keep the prompt compact and pointer-based.',
+      'Read existing files for continuity; create missing tactical plan.md before code changes.',
       continuityFiles.join('\n'),
       '',
       'Do not paste local plan, WorkGraph, story brain, or Jira context bodies into this prompt.',
@@ -114,7 +115,7 @@ export function buildClaudeHandoffPrompt(ticketKey: string, contract?: Execution
       }
     }
     startLines.push(
-      '3. After "proceed": sanity-check repo, then execute inside the approved contract.',
+      '3. After "proceed": sanity-check repo, author/update plan.md from the frozen Super PRD and spec pointers, then execute inside the approved contract.',
       `   repo: ${contract.repo}`,
       `   branch: ${contract.branch}`,
       `   worktree: ${contract.worktreePath}`,
