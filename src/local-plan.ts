@@ -47,6 +47,86 @@ function bullets(items: string[]): string {
   return (items.length ? items : ['none']).map(item => `- ${item}`).join('\n')
 }
 
+export interface WorkGraphContinuityWave {
+  name: string
+  goal?: string
+  lanes?: string[]
+}
+
+export interface WorkGraphContinuityTask {
+  key: string
+  summary: string
+  wave?: string
+  lane?: string
+  blockers?: string[]
+  localPlanPath?: string
+  status?: string
+}
+
+export interface WorkGraphContinuity {
+  parentKey: string
+  summary: string
+  projectGoal?: string
+  globalConstraints?: string[]
+  decisions?: string[]
+  waves?: WorkGraphContinuityWave[]
+  tasks: WorkGraphContinuityTask[]
+  proofSummary?: string[]
+}
+
+function inlineList(items?: string[]): string {
+  return items && items.length > 0 ? items.join(', ') : 'none'
+}
+
+function renderContinuityWave(wave: WorkGraphContinuityWave): string {
+  const goal = wave.goal ? `: ${wave.goal}` : ''
+  const lanes = ` (lanes: ${inlineList(wave.lanes)})`
+  return `- ${wave.name}${goal}${lanes}`
+}
+
+function renderContinuityTask(task: WorkGraphContinuityTask): string {
+  const parts = [
+    `wave: ${task.wave || 'unspecified'}`,
+    `lane: ${task.lane || 'unspecified'}`,
+    `status: ${task.status || 'unknown'}`,
+    `blockers: ${inlineList(task.blockers)}`,
+    `plan: ${task.localPlanPath || 'pending'}`
+  ]
+  return `- ${task.key}: ${task.summary} (${parts.join(' | ')})`
+}
+
+export function renderWorkGraphContinuity(workgraph: WorkGraphContinuity): string {
+  const parentKey = normalizeTicketKey(workgraph.parentKey)
+  const constraintsAndDecisions = [
+    ...(workgraph.globalConstraints ?? []),
+    ...(workgraph.decisions ?? []).map(decision => `Decision: ${decision}`)
+  ]
+
+  return [
+    `# WorkGraph ${parentKey}: ${workgraph.summary}`,
+    '',
+    '## Project Goal',
+    '',
+    workgraph.projectGoal?.trim() || 'pending',
+    '',
+    '## Global Constraints and Decisions',
+    '',
+    bullets(constraintsAndDecisions),
+    '',
+    '## Wave Map',
+    '',
+    (workgraph.waves && workgraph.waves.length > 0 ? workgraph.waves.map(renderContinuityWave) : ['- none']).join('\n'),
+    '',
+    '## Task Graph',
+    '',
+    (workgraph.tasks.length > 0 ? workgraph.tasks.map(renderContinuityTask) : ['- none']).join('\n'),
+    '',
+    '## Proof Summary',
+    '',
+    bullets(workgraph.proofSummary ?? ['pending'])
+  ].join('\n')
+}
+
 export function renderLocalPlan(ticket: JiraTicket, plan: JiraPlan): string {
   const key = normalizeTicketKey(ticket.key)
   const projectPath = projectPathForPlan(ticket).join('/')
@@ -106,5 +186,24 @@ export function writeStoryBrain(parentTicket: JiraTicket | string, brain: StoryB
   const filePath = storyBrainPath(parentTicket, root)
   mkdirSync(path.dirname(filePath), { recursive: true })
   writeFileSync(filePath, renderStoryBrain(brain), 'utf8')
+  return filePath
+}
+
+export function workGraphContinuityPath(parentTicketOrKey: JiraTicket | string, root = DEFAULT_PLANS_DIR): string {
+  const parentKey = normalizeTicketKey(
+    typeof parentTicketOrKey === 'string' ? parentTicketOrKey : parentTicketOrKey.key
+  )
+  const projectSegments = projectPathForPlan(parentTicketOrKey)
+  return path.join(root, ...projectSegments, parentKey, 'workgraph.md')
+}
+
+export function writeWorkGraphContinuity(
+  parentTicket: JiraTicket | string,
+  workgraph: WorkGraphContinuity,
+  root = DEFAULT_PLANS_DIR
+): string {
+  const filePath = workGraphContinuityPath(parentTicket, root)
+  mkdirSync(path.dirname(filePath), { recursive: true })
+  writeFileSync(filePath, renderWorkGraphContinuity(workgraph), 'utf8')
   return filePath
 }

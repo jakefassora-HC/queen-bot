@@ -66,6 +66,7 @@ test('formatExecutionContext brief mode prints a receipt without Super PRD bulk'
   expect(output).toContain('engine: claude')
   expect(output).toContain('local_plan: /tmp/plans/Codefied/human-road-warrior/AISOL-592/plan.md')
   expect(output).toContain('local_plan_status: ready')
+  expect(output).toContain('local_plan_action: read and update as needed')
   expect(output).toContain('parent: AISOL-97 Roadwarrior')
   expect(output).toContain('story_point_policy: executable leaf work')
   expect(output).toContain('goal: Show all Sankey flow details.')
@@ -106,4 +107,5 @@ test('formatExecutionContext marks missing local plans without hiding the expect
 
   expect(output).toContain('local_plan: /tmp/plans/Codefied/human-road-warrior/AISOL-592/plan.md')
   expect(output).toContain('local_plan_status: missing')
+  expect(output).toContain('local_plan_action: write plan.md before code changes')
 })

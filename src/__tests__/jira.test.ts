@@ -6,6 +6,7 @@ import {
   buildQueueJql,
   buildQueueSearchUrl,
   buildUpdateDescriptionPayload,
+  fetchQueueIssues,
   parseTicket,
   parseRepoLabel,
   upsertTextToDescriptionAdf,
@@ -180,6 +181,37 @@ test('buildQueueSearchUrl explicitly requests fields needed by parseTicket', () 
   expect(decodeURIComponent(url)).toContain('fields=*all')
 })
 
+test('buildQueueSearchUrl includes nextPageToken for Jira pagination', () => {
+  const url = buildQueueSearchUrl('https://example.atlassian.net', buildQueueJql('TOOL'), 20, 'next-123')
+
+  expect(decodeURIComponent(url)).toContain('nextPageToken=next-123')
+})
+
+test('fetchQueueIssues follows Jira nextPageToken pagination', async () => {
+  const urls: string[] = []
+  const fetcher = async (url: string) => {
+    urls.push(url)
+    const token = new URL(url).searchParams.get('nextPageToken')
+    return {
+      ok: true,
+      json: async () => token === 'page-2'
+        ? { issues: [{ ...rawIssue, id: '10002', key: 'TOOL-49' }] }
+        : { issues: [rawIssue], nextPageToken: 'page-2' }
+    } as Response
+  }
+
+  const issues = await fetchQueueIssues(
+    { baseUrl: 'https://example.atlassian.net', email: 'jake@example.com', project: 'TOOL' },
+    'Basic abc',
+    {},
+    fetcher as typeof fetch
+  )
+
+  expect(issues.map(issue => issue.key)).toEqual(['TOOL-48', 'TOOL-49'])
+  expect(urls).toHaveLength(2)
+  expect(new URL(urls[1]).searchParams.get('nextPageToken')).toBe('page-2')
+})
+
 test('verifyJiraAuth throws a useful error on invalid credentials', async () => {
   const fetcher = async () => ({
     ok: false,
@@ -210,7 +242,13 @@ test('buildCreateIssuePayload turns a draft into Jira ADF fields', () => {
     definitionOfDone: ['Approved tickets are created in Jira'],
     labels: ['agent-spec'],
     relatedRepos: ['jakefassora-HC/queen-bot'],
-    storyPoints: 3
+    storyPoints: 3,
+    wave: 1,
+    lane: 'Planning',
+    blockedBy: ['AISOL-1'],
+    canRunWith: ['AISOL-3'],
+    sourcePlanPath: '/tmp/source-plan.md',
+    sourceSection: '§4B'
   })
 
   expect(payload.fields.project.key).toBe('TOOL')
@@ -219,6 +257,14 @@ test('buildCreateIssuePayload turns a draft into Jira ADF fields', () => {
   expect(payload.fields.labels).toContain('agent-draft')
   expect(payload.fields.description.type).toBe('doc')
   expect(JSON.stringify(payload.fields.description)).toContain('Goal')
+  expect(adfToPlainText(payload.fields.description)).toContain('## Parallel Execution')
+  expect(adfToPlainText(payload.fields.description)).toContain('Wave: 1')
+  expect(adfToPlainText(payload.fields.description)).toContain('Lane: Planning')
+  expect(adfToPlainText(payload.fields.description)).toContain('Blocked by: AISOL-1')
+  expect(adfToPlainText(payload.fields.description)).toContain('Can run with: AISOL-3')
+  expect(adfToPlainText(payload.fields.description)).toContain('## Source Plan')
+  expect(adfToPlainText(payload.fields.description)).toContain('Path: /tmp/source-plan.md')
+  expect(adfToPlainText(payload.fields.description)).toContain('Section: §4B')
 })
 
 test('appendTextToDescriptionAdf preserves existing ADF nodes when adding Agent Q text', () => {

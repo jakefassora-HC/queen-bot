@@ -28,7 +28,14 @@ const TICKET_SCHEMA = `{
   "risks": [],
   "definitionOfDone": [],
   "labels": [],
-  "relatedRepos": []
+  "relatedRepos": [],
+  "wave": 0,
+  "lane": "",
+  "blockedBy": [],
+  "blocks": [],
+  "canRunWith": [],
+  "sourcePlanPath": "",
+  "sourceSection": ""
 }`
 
 export function buildTicketDraftPrompt(request: TicketDraftRequest): string {
@@ -46,6 +53,9 @@ Rules:
 - Story captures the user-facing feature goal (issueType: "Story"). Estimate storyPoints as sum of task points.
 - Tasks are concrete implementation steps (issueType: "Task"). Estimate storyPoints 1-5 per task based on complexity.
 - Explicitly note which tasks can run in parallel vs. must be sequential in each task's researchNotes.
+- Add WorkGraph metadata to every task: wave, lane, blockedBy, blocks, canRunWith, sourcePlanPath, sourceSection.
+- Wave 0 is unblockers, Wave 1 is parallel build lanes, Wave 2 is integration, Wave 3 is verification/demo.
+- Use sourcePlanPath/sourceSection to preserve provenance back to the implementation plan without copying the whole plan into Jira.
 - Use spec-driven development language. Terse, no filler.
 - Apply token discipline: ${TOKEN_DISCIPLINE}.
 
@@ -92,6 +102,13 @@ function parseOneDraft(raw: Record<string, unknown>, index: number): TicketDraft
     labels: asStringArray(raw.labels),
     relatedRepos: asStringArray(raw.relatedRepos),
     storyPoints: typeof raw.storyPoints === 'number' ? raw.storyPoints : 2,
+    wave: typeof raw.wave === 'number' ? raw.wave : undefined,
+    lane: typeof raw.lane === 'string' && raw.lane.trim() ? raw.lane.trim() : undefined,
+    blockedBy: asStringArray(raw.blockedBy),
+    blocks: asStringArray(raw.blocks),
+    canRunWith: asStringArray(raw.canRunWith),
+    sourcePlanPath: typeof raw.sourcePlanPath === 'string' && raw.sourcePlanPath.trim() ? raw.sourcePlanPath.trim() : undefined,
+    sourceSection: typeof raw.sourceSection === 'string' && raw.sourceSection.trim() ? raw.sourceSection.trim() : undefined,
   }
 }
 
@@ -146,6 +163,14 @@ function formatDraft(draft: TicketDraft, index: number): string {
     `Goal: ${draft.goal.why}`,
     ...(draft.goal.successCriteria.length > 0
       ? [`Success Criteria:\n${draft.goal.successCriteria.map(c => `  - ${c}`).join('\n')}`]
+      : []),
+    ...(draft.wave !== undefined || draft.lane
+      ? [`WorkGraph: wave ${draft.wave ?? 'unassigned'} | lane ${draft.lane ?? 'unassigned'}`]
+      : []),
+    ...(draft.blockedBy && draft.blockedBy.length > 0 ? [`Blocked by: ${draft.blockedBy.join(', ')}`] : []),
+    ...(draft.canRunWith && draft.canRunWith.length > 0 ? [`Can run with: ${draft.canRunWith.join(', ')}`] : []),
+    ...(draft.sourcePlanPath || draft.sourceSection
+      ? [`Source: ${draft.sourcePlanPath ?? 'unknown'} ${draft.sourceSection ?? ''}`.trim()]
       : []),
     'Related repos:',
     renderBullets(draft.relatedRepos),

@@ -37,7 +37,7 @@ export function preflightExecutionTicket(ticket: JiraTicket, options: PreflightO
   } else {
     const planPath = plan.localPlanPath ?? localPlanPath(ticket)
     if (!localPlanExists(planPath)) {
-      blockers.push(message(`local plan missing: ${planPath}`, `agent-queue plan ${ticket.key} --write`))
+      warnings.push(message(`local plan not authored yet: ${planPath}`, 'worker should write plan.md before code changes'))
     }
   }
 

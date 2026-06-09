@@ -2,7 +2,16 @@ import { mkdtempSync, readFileSync, rmSync } from 'fs'
 import { tmpdir } from 'os'
 import path from 'path'
 import { buildPlanFromTicket } from '../plan-command.js'
-import { localPlanPath, renderLocalPlan, writeLocalPlan, storyBrainPath, writeStoryBrain } from '../local-plan.js'
+import {
+  localPlanPath,
+  renderLocalPlan,
+  renderWorkGraphContinuity,
+  workGraphContinuityPath,
+  writeLocalPlan,
+  writeWorkGraphContinuity,
+  storyBrainPath,
+  writeStoryBrain
+} from '../local-plan.js'
 import type { JiraTicket, StoryBrain } from '../types.js'
 
 const ticket: JiraTicket = {
@@ -83,6 +92,79 @@ describe('writeStoryBrain', () => {
       const written = writeStoryBrain(testTicket, brain, tmpDir)
       expect(written).toMatch(/story\.md$/)
       expect(readFileSync(written, 'utf8')).toContain('# Story AISOL-651')
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('renderWorkGraphContinuity', () => {
+  it('renders compact parent continuity with waves, lanes, blockers, and local plan paths', () => {
+    const markdown = renderWorkGraphContinuity({
+      parentKey: 'QUEEN-101',
+      summary: 'Queen WorkGraph continuity',
+      projectGoal: 'Coordinate the Queen rollout without stuffing every worker prompt.',
+      globalConstraints: ['Keep one plan.md per ticket'],
+      decisions: ['Workers read the shared workgraph before local implementation'],
+      waves: [
+        { name: 'Wave 0', goal: 'Foundation', lanes: ['backend', 'tests'] },
+        { name: 'Wave 1', goal: 'Worker execution', lanes: ['worker'] }
+      ],
+      tasks: [
+        {
+          key: 'QUEEN-102',
+          summary: 'Create continuity renderer',
+          wave: 'Wave 0',
+          lane: 'backend',
+          blockers: ['QUEEN-103'],
+          localPlanPath: '/tmp/plans/Codefied/agent-queue/QUEEN-102/plan.md'
+        },
+        {
+          key: 'QUEEN-103',
+          summary: 'Verify compact prompt handoff',
+          wave: 'Wave 1',
+          lane: 'worker',
+          blockers: [],
+          localPlanPath: '/tmp/plans/Codefied/agent-queue/QUEEN-103/plan.md'
+        }
+      ]
+    })
+
+    expect(markdown).toContain('# WorkGraph QUEEN-101: Queen WorkGraph continuity')
+    expect(markdown).toContain('## Wave Map')
+    expect(markdown).toContain('- Wave 0: Foundation (lanes: backend, tests)')
+    expect(markdown).toContain('lane: backend')
+    expect(markdown).toContain('blockers: QUEEN-103')
+    expect(markdown).toContain('plan: /tmp/plans/Codefied/agent-queue/QUEEN-102/plan.md')
+    expect(markdown).toContain('## Proof Summary')
+    expect(markdown).toContain('- pending')
+    expect(markdown.split(/\s+/).length).toBeLessThan(180)
+  })
+})
+
+describe('writeWorkGraphContinuity', () => {
+  it('writes one shared workgraph file under the parent directory', () => {
+    const tmpDir = mkdtempSync(path.join(tmpdir(), 'aq-workgraph-'))
+    try {
+      const parent = { key: 'QUEEN-101', summary: 'Queen', repo: 'Codefied/agent-queue' } as JiraTicket
+      const written = writeWorkGraphContinuity(parent, {
+        parentKey: 'QUEEN-101',
+        summary: 'Queen',
+        projectGoal: 'Ship continuity',
+        tasks: [
+          {
+            key: 'QUEEN-102',
+            summary: 'Local plan',
+            wave: 'Wave 0',
+            lane: 'tests',
+            localPlanPath: path.join(tmpDir, 'Codefied', 'agent-queue', 'QUEEN-102', 'plan.md')
+          }
+        ]
+      }, tmpDir)
+
+      expect(written).toBe(workGraphContinuityPath(parent, tmpDir))
+      expect(written).toBe(path.join(tmpDir, 'Codefied', 'agent-queue', 'QUEEN-101', 'workgraph.md'))
+      expect(readFileSync(written, 'utf8')).toContain('plan.md')
     } finally {
       rmSync(tmpDir, { recursive: true, force: true })
     }

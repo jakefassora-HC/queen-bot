@@ -1,8 +1,8 @@
 import { spawn } from 'child_process'
 import { existsSync } from 'fs'
 import { renderGoal } from './jira-goal.js'
-import { storyBrainPath } from './local-plan.js'
-import type { ExecutionContract } from './types.js'
+import { storyBrainPath, workGraphContinuityPath } from './local-plan.js'
+import type { ExecutionContract, JiraTicket } from './types.js'
 
 export const DEFAULT_CMUX_BINARY = '/Applications/cmux.app/Contents/Resources/bin/cmux'
 
@@ -28,6 +28,11 @@ export function canStartCmuxFromEnv(env: NodeJS.ProcessEnv = process.env): boole
   return Boolean(env.CMUX_WORKSPACE_ID || env.AGENT_QUEUE_ALLOW_EXTERNAL_CMUX === '1')
 }
 
+export interface ClaudeHandoffPromptOptions {
+  plansRoot?: string
+  exists?: (path: string) => boolean
+}
+
 export function cmuxStartHelp(): string {
   return [
     'cmux start is blocked from this shell.',
@@ -36,8 +41,9 @@ export function cmuxStartHelp(): string {
   ].join('\n')
 }
 
-export function buildClaudeHandoffPrompt(ticketKey: string, contract?: ExecutionContract): string {
+export function buildClaudeHandoffPrompt(ticketKey: string, contract?: ExecutionContract, options: ClaudeHandoffPromptOptions = {}): string {
   const key = cmuxWorkspaceName(ticketKey)
+  const fileExists = options.exists ?? existsSync
 
   const goalBlock = contract?.goal
     ? [
@@ -49,8 +55,18 @@ export function buildClaudeHandoffPrompt(ticketKey: string, contract?: Execution
       ].join('\n')
     : ''
 
-  const storyBrainFile = contract ? storyBrainPath(contract.ticketKey) : null
-  const hasBrain = Boolean(storyBrainFile && existsSync(storyBrainFile))
+  const localPlanFile = contract?.plan.localPlanPath
+  const continuityTicket = contract ? { key: contract.ticketKey, repo: contract.repo } as JiraTicket : null
+  const storyBrainFile = continuityTicket ? storyBrainPath(continuityTicket, options.plansRoot) : null
+  const workGraphFile = continuityTicket ? workGraphContinuityPath(continuityTicket, options.plansRoot) : null
+  const hasBrain = Boolean(storyBrainFile && fileExists(storyBrainFile))
+  const hasWorkGraph = Boolean(workGraphFile && fileExists(workGraphFile))
+  const localPlanExists = Boolean(localPlanFile && fileExists(localPlanFile))
+  const continuityFiles = [
+    localPlanFile ? `- Local plan: ${localPlanFile}${localPlanExists ? '' : ' (create/update before code changes)'}` : null,
+    hasBrain && storyBrainFile ? `- Story brain: ${storyBrainFile}` : null,
+    hasWorkGraph && workGraphFile ? `- WorkGraph continuity: ${workGraphFile}` : null,
+  ].filter((line): line is string => line !== null)
 
   const sections: string[] = []
 
@@ -58,16 +74,14 @@ export function buildClaudeHandoffPrompt(ticketKey: string, contract?: Execution
 
   if (goalBlock) sections.push(goalBlock)
 
-  if (hasBrain && storyBrainFile) {
+  if (continuityFiles.length > 0) {
     sections.push([
-      '## Story Brain',
+      '## Continuity Files',
       '',
-      'Your full execution context is in the story brain file:',
-      `  ${storyBrainFile}`,
+      'Read existing files for continuity; create missing tactical plan.md before code changes.',
+      continuityFiles.join('\n'),
       '',
-      'Read this file first. It contains the Goal, Task Graph (completion status), Plan sections for each task, Worktrees, Proof history, and Status.',
-      'Update Task Graph checkboxes as you complete each task.',
-      'Append proof entries when you verify work.',
+      'Do not paste local plan, WorkGraph, story brain, or Jira context bodies into this prompt.',
     ].join('\n'))
   }
 
@@ -101,7 +115,7 @@ export function buildClaudeHandoffPrompt(ticketKey: string, contract?: Execution
       }
     }
     startLines.push(
-      '3. After "proceed": sanity-check repo, then execute inside the approved contract.',
+      '3. After "proceed": sanity-check repo, author/update plan.md from the frozen Super PRD and spec pointers, then execute inside the approved contract.',
       `   repo: ${contract.repo}`,
       `   branch: ${contract.branch}`,
       `   worktree: ${contract.worktreePath}`,

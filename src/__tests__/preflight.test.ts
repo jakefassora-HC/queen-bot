@@ -34,12 +34,13 @@ function plannedTicket(overrides: Partial<JiraTicket> = {}): JiraTicket {
   return ticket
 }
 
-test('preflight blocks execution when the local full plan is missing', () => {
+test('preflight warns when the tactical local plan is missing', () => {
   const result = preflightExecutionTicket(plannedTicket(), { localPlanExists: () => false, repoExists: () => true })
 
-  expect(result.ok).toBe(false)
-  expect(result.blockers[0].message).toContain('local plan missing')
-  expect(result.blockers[0].fix).toContain('agent-queue plan AISOL-465 --write')
+  expect(result.ok).toBe(true)
+  expect(result.blockers).toEqual([])
+  expect(result.warnings[0].message).toContain('local plan not authored yet')
+  expect(result.warnings[0].fix).toContain('worker should write plan.md before code changes')
 })
 
 test('preflight allows a small planned ticket when required files exist', () => {
@@ -73,7 +74,7 @@ test('preflight marks repo checkout as warning, not blocker', () => {
   expect(result.warnings[0].message).toContain('local repo checkout not found')
 })
 
-test('preflight detects local plan files by default', () => {
+test('preflight detects missing local plan files by default as a warning', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'agent-queue-preflight-'))
   const ticket = plannedTicket()
   const planPath = localPlanPath(ticket, root)
@@ -84,5 +85,6 @@ test('preflight detects local plan files by default', () => {
     description: ticket.description.replace(localPlanPath(ticket, '/tmp/plans'), planPath)
   })
 
-  expect(result.blockers.map(item => item.message).join('\n')).toContain('local plan missing')
+  expect(result.ok).toBe(true)
+  expect(result.warnings.map(item => item.message).join('\n')).toContain('local plan not authored yet')
 })

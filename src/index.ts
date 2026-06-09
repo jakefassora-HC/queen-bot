@@ -18,6 +18,7 @@ import { runPlanCommentCommand } from './plan-comment-command.js'
 import { runProofCommand } from './proof.js'
 import { runExecuteReadyCommand } from './execution-command.js'
 import { runContextCommand } from './context-command.js'
+import { formatGraphStatus, resolveWaveTickets } from './workgraph-command.js'
 import type { JiraTicket } from './types.js'
 
 function prompt(q: string): Promise<string> {
@@ -155,6 +156,57 @@ export async function main(): Promise<void> {
 
   if (args[0] === 'execute-ready') {
     await runExecuteReadyCommand(args.slice(1), tickets)
+    return
+  }
+
+  if (args[0] === 'graph-status') {
+    const selection = args[1]
+    if (!selection) {
+      console.error('Usage: agent-queue graph-status <parent-ticket-number-or-key>')
+      process.exitCode = 1
+      return
+    }
+    const parent = resolveTicketSelection(tickets, selection)
+    if (!parent) {
+      console.error(`Ticket not found in current queue: ${selection}`)
+      process.exitCode = 1
+      return
+    }
+    console.log(formatGraphStatus(parent, tickets))
+    return
+  }
+
+  if (args[0] === 'execute-wave') {
+    const selection = args[1]
+    const waveIndex = args.indexOf('--wave')
+    const waveValue = waveIndex === -1 ? undefined : args[waveIndex + 1]
+    if (!selection || !waveValue || !/^\d+$/.test(waveValue)) {
+      console.error('Usage: agent-queue execute-wave <parent-ticket-number-or-key> --wave <n> [--start] [--verbose] [--engine claude]')
+      process.exitCode = 1
+      return
+    }
+    const parent = resolveTicketSelection(tickets, selection)
+    if (!parent) {
+      console.error(`Ticket not found in current queue: ${selection}`)
+      process.exitCode = 1
+      return
+    }
+    const wave = resolveWaveTickets(parent.key, Number(waveValue), tickets)
+    if (wave.blocked.length > 0) {
+      console.log(`Blocked wave ${waveValue} tickets:`)
+      wave.blocked.forEach(item => console.log(`- ${item.ticketKey}: ${item.reason}`))
+      console.log('')
+    }
+    if (wave.ready.length === 0) {
+      console.log(`No ready tickets in wave ${waveValue} for ${parent.key}.`)
+      return
+    }
+    const passthrough = args.slice(2).filter((arg, index, sliced) => {
+      if (arg === '--wave') return false
+      if (sliced[index - 1] === '--wave') return false
+      return true
+    })
+    await runExecuteReadyCommand([...wave.ready.map(ticket => ticket.key), ...passthrough], tickets)
     return
   }
 
